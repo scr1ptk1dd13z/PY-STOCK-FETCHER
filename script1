@@ -21,7 +21,6 @@ nyse_tickers = [
     "ORCL", "O", "DOV", "WM", "KMB"
 ]
 
-
 # Function to fetch stock data for a given ticker
 def fetch_stock_data(tickers):
     stock_data = []
