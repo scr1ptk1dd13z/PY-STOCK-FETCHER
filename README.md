@@ -1,61 +1,73 @@
-# Stock Data Fetcher
+# Stock Data Fetching Script
 
-This project is designed to be run in Google Colab, providing a simple and efficient way to fetch detailed stock data for U.S. and Canadian companies. By utilizing the yfinance library, it collects various financial metrics and insights, helping users analyze stocks and make informed investment decisions.
+This script fetches detailed stock information for the top US and Canadian companies, including S&P 500 and TSX Composite tickers. It collects data such as company fundamentals, financial ratios, and price metrics, then saves the data in CSV and Excel formats. The script is designed to be used in Google Colab for seamless data processing and easy file management.
 
-The script fetches data for a customizable list of tickers, retrieves relevant financial information, and exports it to both CSV and Excel formats for easy analysis.
+## Features
+- Fetches stock data for up to 1,500 companies from the S&P 500 and TSX Composite indices.
+- Collects detailed financial information, including valuation ratios, margins, growth rates, ownership metrics, and stock performance data.
+- Handles retries when fetching data to ensure resilience against temporary issues.
+- Saves output data in both CSV and Excel formats for easy analysis.
+- Supports auto-download of the CSV file in Google Colab.
 
-| Column Header                     | Column Letter | Description                                                  | Data Type        | Calculation/Unit                          | Additional Information                                        |
-|-----------------------------------|---------------|--------------------------------------------------------------|------------------|-------------------------------------------|----------------------------------------------------------------|
-| Symbol                            | A             | Ticker symbol for the stock                                  | String           | -                                         | The unique abbreviation for a publicly traded company's stock |
-| Name                              | B             | Full name of the company                                      | String           | -                                         | Official registered name of the company                        |
-| Website                           | C             | Company's official website                                    | String           | -                                         | Useful for accessing more information about the company        |
-| Country                           | D             | Country of the company's headquarters                         | String           | -                                         | Indicates where the company is based                            |
-| Currency                          | E             | Currency used for financial data                              | String           | -                                         | The currency in which the stock is traded                      |
-| Exchange                          | F             | Stock exchange where the company is listed                    | String           | -                                         | Examples include NYSE, NASDAQ, TSX                             |
-| Sector                            | G             | Sector the company operates in                                | String           | -                                         | Broad category of industry (e.g., Healthcare, Technology)     |
-| Industry                          | H             | Industry category                                             | String           | -                                         | More specific category within the sector (e.g., Medical Devices) |
-| Current Price                     | I             | Current trading price of the stock                            | Currency         | -                                         | The latest available trading price of the stock                |
-| 52-Week High                      | J             | Highest trading price in the last 52 weeks                    | Currency         | -                                         | Indicates the peak price over the past year                    |
-| 52-Week Low                       | K             | Lowest trading price in the last 52 weeks                     | Currency         | -                                         | Indicates the lowest price over the past year                  |
-| Market Cap                        | L             | Total market capitalization                                   | Currency         | Shares Outstanding × Current Price        | Represents the total value of all outstanding shares           |
-| Enterprise Value                  | M             | Total value of the company, including debt                    | Currency         | Market Cap + Total Debt - Cash            | Provides a more comprehensive company valuation                |
-| PE Ratio                          | N             | Price-to-Earnings ratio                                       | Number (float)   | Current Price / Earnings per Share       | Indicates how much investors are willing to pay for each dollar of earnings |
-| Forward PE                        | O             | Projected Price-to-Earnings ratio                             | Number (float)   | Current Price / Projected Earnings        | Useful for estimating future growth                             |
-| PEG Ratio                         | P             | Price/Earnings to Growth ratio                                | Number (float)   | PE Ratio / Earnings Growth Rate           | A lower PEG suggests undervaluation relative to growth         |
-| Price to Book                     | Q             | Price-to-Book ratio                                           | Number (float)   | Current Price / Book Value per Share     | Indicates if the stock is valued high compared to its book value|
-| Price to Sales                    | R             | Price-to-Sales ratio                                          | Number (float)   | Current Price / Revenue per Share        | Shows how much investors are willing to pay for each dollar of sales |
-| Dividend Rate                     | S             | Annual dividend paid per share                                | Currency         | -                                         | Amount distributed to shareholders annually per share          |
-| Dividend Yield                    | T             | Dividend as a percentage of current price                     | Percentage       | (Dividend Rate / Current Price) × 100     | Reflects the annual return on dividends based on the stock's current price |
-| Payout Ratio                      | U             | Percentage of earnings paid out as dividends                  | Percentage       | (Dividend Rate / Earnings per Share) × 100| Shows how much profit is being returned to shareholders        |
-| Five-Year Avg. Dividend Yield     | V             | Average dividend yield over the last five years               | Percentage       | -                                         | Provides historical perspective on the company’s dividend payouts |
-| Revenue per Share                 | W             | Revenue divided by outstanding shares                         | Currency         | Total Revenue / Shares Outstanding       | Indicates how much revenue is generated per share              |
-| Revenue Growth (YoY)             | X             | Year-over-Year revenue growth percentage                      | Percentage       | ((Current Revenue - Previous Revenue) / Previous Revenue) × 100 | Measures how quickly the company’s revenue is growing year-over-year |
-| Earnings Growth (YoY)            | Y             | Year-over-Year earnings growth percentage                     | Percentage       | ((Current Earnings - Previous Earnings) / Previous Earnings) × 100 | Indicates the company's profit growth over the past year       |
-| EBITDA Margins                    | Z             | EBITDA as a percentage of revenue                             | Percentage       | (EBITDA / Revenue) × 100                 | Shows profitability before interest, taxes, depreciation, and amortization |
-| Gross Margins                     | AA            | Gross profit as a percentage of revenue                       | Percentage       | (Gross Profit / Revenue) × 100           | Indicates how efficiently a company produces its goods        |
-| Operating Margins                 | AB            | Operating income as a percentage of revenue                   | Percentage       | (Operating Income / Revenue) × 100       | Shows profitability from core business activities              |
-| Profit Margins                    | AC            | Net income as a percentage of revenue                         | Percentage       | (Net Income / Revenue) × 100             | Indicates overall profitability after all expenses             |
-| Free Cash Flow                    | AD            | Cash generated after capital expenditures                     | Currency         | -                                         | Represents the cash available for distribution to shareholders  |
-| Operating Cash Flow               | AE            | Cash generated from operations                                | Currency         | -                                         | Shows the company’s ability to generate cash from core activities|
-| Total Cash                        | AF            | Total cash and cash equivalents on the balance sheet          | Currency         | -                                         | Cash reserves available to the company                         |
-| Cash per Share                    | AG            | Cash divided by outstanding shares                            | Currency         | Total Cash / Shares Outstanding          | Measures liquidity on a per-share basis                         |
-| Total Debt                        | AH            | Total debt on the balance sheet                               | Currency         | -                                         | Represents the company's total liabilities                     |
-| Net Debt                          | AI            | Total debt minus cash and cash equivalents                    | Currency         | Total Debt - Total Cash                  | Indicates the company’s debt load after accounting for cash reserves |
-| Debt to Equity                    | AJ            | Total debt divided by shareholders' equity                    | Number (float)   | Total Debt / Shareholders' Equity        | Measures financial leverage                                      |
-| Current Ratio                     | AK            | Current assets divided by current liabilities                 | Number (float)   | Current Assets / Current Liabilities    | Indicates liquidity and short-term financial health            |
-| Quick Ratio                       | AL            | Quick assets divided by current liabilities                   | Number (float)   | (Current Assets - Inventory) / Current Liabilities | A stricter measure of liquidity, excluding inventory          |
-| Beta                              | AM            | Measure of volatility in relation to the market               | Number (float)   | -                                         | A beta greater than 1 indicates more volatility than the market |
-| Average Volume                    | AN            | Average number of shares traded in a day                      | Number (float)   | -                                         | Indicates typical trading activity                             |
-| Regular Market Volume             | AO            | Number of shares traded during the regular market session     | Number (float)   | -                                         | Shows daily trading activity                                    |
-| Current Price Change (%)          | AP            | Percentage change in stock price                              | Percentage       | ((Current Price - Previous Price) / Previous Price) × 100 | Reflects the latest price change as a percentage               |
-| 1-Year Return                     | AQ            | Percentage change in stock price over the last year           | Percentage       | ((Current Price - Price 1 Year Ago) / Price 1 Year Ago) × 100 | Measures stock performance over a one-year period              |
-| Insider Ownership                 | AR            | Percentage of shares owned by insiders                        | Percentage       | -                                         | Indicates the proportion of shares held by company insiders   |
-| Institutional Ownership           | AS            | Percentage of shares owned by institutional investors         | Percentage       | -                                         | Shows the level of ownership by financial institutions         |
-| Short Ratio                       | AT            | Ratio of shares shorted to total shares outstanding           | Number (float)   | -                                         | Indicates the level of short interest in the stock             |
-| Target High Price                 | AU            | Analyst's estimated high price for the stock                  | Currency         | -                                         | Reflects optimistic price forecasts                            |
-| Target Low Price                  | AV            | Analyst's estimated low price for the stock                   | Currency         | -                                         | Reflects conservative price forecasts                          |
-| Target Mean Price                 | AW            | Analyst's estimated average price for the stock               | Currency         | -                                         | Provides a consensus price target from analysts                |
-| Recommendation Mean               | AX            | Average recommendation from analysts                          | String           | -                                         | Typically represented as a number (1 = Strong Buy, 5 = Sell)  |
-| Number of Analyst Opinions        | AY            | Total number of analysts covering the stock                   | Number (int)     | -                                         | Indicates the breadth of analyst coverage                      |
+## Data Columns
 
----
+| Column Name                        | Description                                             | Data Type       | Calculation Type          | Column in Sheet |
+|------------------------------------|---------------------------------------------------------|-----------------|---------------------------|----------------|
+| Symbol                             | Ticker symbol of the company                             | Text            | -                         | A              |
+| Name                               | Full name of the company                                 | Text            | -                         | B              |
+| Sector                             | Economic sector                                          | Text            | -                         | C              |
+| Industry                           | Specific industry within the sector                      | Text            | -                         | D              |
+| Country                            | Company's country of operation                           | Text            | -                         | E              |
+| Currency                           | Currency for the stock prices                            | Text            | -                         | F              |
+| Exchange                           | Stock exchange where the company is listed               | Text            | -                         | G              |
+| Website                            | Company's official website                               | Text            | -                         | H              |
+| Current Price                      | Current stock price                                      | Currency        | -                         | I              |
+| Market Cap                         | Market capitalization                                    | Currency        | Sum                       | J              |
+| Enterprise Value                   | Total value considering debt                             | Currency        | Sum                       | K              |
+| PE Ratio                           | Price-to-earnings ratio                                  | Number          | Average                   | L              |
+| Forward PE                         | Estimated price-to-earnings for the next year            | Number          | Average                   | M              |
+| PEG Ratio                          | Price/earnings to growth ratio                           | Number          | Average                   | N              |
+| Price to Book                      | Price relative to book value per share                   | Number          | Average                   | O              |
+| Price to Sales                     | Price relative to sales per share                        | Number          | Average                   | P              |
+| Book Value per Share               | Value of net assets divided by shares outstanding        | Currency        | -                         | Q              |
+| Revenue per Share                  | Revenue divided by shares outstanding                    | Currency        | -                         | R              |
+| Revenue Growth (YoY)               | Year-over-year revenue growth                            | Percentage      | -                         | S              |
+| Earnings Growth (YoY)              | Year-over-year earnings growth                           | Percentage      | -                         | T              |
+| EBITDA Margins                     | EBITDA as a percentage of revenue                        | Percentage      | -                         | U              |
+| Gross Margins                      | Gross profit as a percentage of revenue                  | Percentage      | -                         | V              |
+| Operating Margins                  | Operating profit as a percentage of revenue              | Percentage      | -                         | W              |
+| Profit Margins                     | Net profit as a percentage of revenue                    | Percentage      | -                         | X              |
+| Dividend Rate                      | Annual dividend payout                                   | Currency        | -                         | Y              |
+| Dividend Yield                     | Dividend as a percentage of current price                | Percentage      | -                         | Z              |
+| Payout Ratio                       | Proportion of earnings paid as dividends                 | Percentage      | -                         | AA             |
+| Five-Year Avg. Dividend Yield      | Average dividend yield over the past five years          | Percentage      | -                         | AB             |
+| Ex-Dividend Date                   | Date when the next dividend will be paid                 | Date            | -                         | AC             |
+| Free Cash Flow                     | Cash available after capital expenditures                | Currency        | Sum                       | AD             |
+| Operating Cash Flow                | Cash generated from operations                           | Currency        | Sum                       | AE             |
+| Total Cash                         | Total cash reserves                                      | Currency        | Sum                       | AF             |
+| Cash per Share                     | Cash reserves divided by shares outstanding              | Currency        | -                         | AG             |
+| Total Debt                         | Sum of short and long-term debt                          | Currency        | Sum                       | AH             |
+| Net Debt                           | Total debt minus cash reserves                           | Currency        | Sum                       | AI             |
+| Debt to Equity                     | Ratio of debt to shareholders' equity                    | Number          | Average                   | AJ             |
+| Current Ratio                      | Current assets divided by current liabilities            | Number          | Average                   | AK             |
+| Quick Ratio                        | (Current assets - inventories) divided by liabilities    | Number          | Average                   | AL             |
+| Beta                               | Measure of stock volatility relative to the market       | Number          | Average                   | AM             |
+| 52-Week High                       | Highest price in the last 52 weeks                       | Currency        | Max                       | AN             |
+| 52-Week Low                        | Lowest price in the last 52 weeks                        | Currency        | Min                       | AO             |
+| Average Volume                     | Average trading volume over a given period               | Number          | Average                   | AP             |
+| Regular Market Volume              | Volume of shares traded in the current session           | Number          | -                         | AQ             |
+| Current Price Change (%)           | Percentage change in the current price                   | Percentage      | -                         | AR             |
+| 1-Year Return                      | Total return over the past year                          | Percentage      | -                         | AS             |
+| Insider Ownership                  | Percentage of shares held by insiders                    | Percentage      | -                         | AT             |
+| Institutional Ownership            | Percentage of shares held by institutions                | Percentage      | -                         | AU             |
+| Short Ratio                        | Ratio of shares sold short to average trading volume     | Number          | Average                   | AV             |
+| Target High Price                  | Highest analyst target price                             | Currency        | Max                       | AW             |
+| Target Low Price                   | Lowest analyst target price                              | Currency        | Min                       | AX             |
+| Target Mean Price                  | Average analyst target price                             | Currency        | Average                   | AY             |
+| Recommendation Mean                | Average analyst recommendation (1=Strong Buy, 5=Sell)    | Number          | Average                   | AZ             |
+| Number of Analyst Opinions         | Number of analysts providing recommendations             | Number          | Sum                       | BA             |
+
+## Getting Started
+
+To use this script, open the provided Google Colab notebook, execute the cells, and download the generated CSV or Excel file containing the fetched stock data.
+
