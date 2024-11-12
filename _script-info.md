@@ -231,9 +231,3 @@ Focus on:
 3. Conservative financing
 4. Margin of safety
 5. Long-term perspective
-
-Would you like me to:
-1. Expand on any specific section?
-2. Add practical examples with real numbers?
-3. Create a step-by-step analysis template?
-4. Add specific industry considerations?
