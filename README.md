@@ -3,7 +3,7 @@
 This script fetches detailed stock information for the top US and Canadian companies, including S&P 500 and TSX Composite tickers. It collects data such as company fundamentals, financial ratios, and price metrics, then saves the data in CSV and Excel formats. The script is designed to be used in Google Colab for seamless data processing and easy file management.
 
 ## Features
-- Fetches stock data for up to 1,500 companies from the S&P 500 and TSX Composite indices.
+- Fetches stock data for up to 11,500 companies from the S&P 500 and TSX Composite indices.
 - Collects detailed financial information, including valuation ratios, margins, growth rates, ownership metrics, and stock performance data.
 - Handles retries when fetching data to ensure resilience against temporary issues.
 - Saves output data in both CSV and Excel formats for easy analysis.
