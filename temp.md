@@ -68,10 +68,10 @@ python script_v7.py
 
 # 📊 Usage Examples
 ## Collecting Stock Data
-
-from script_v7 import fetch_stock_data
 python
 ```
+from script_v7 import fetch_stock_data
+
 ### Fetch data for specific tickers
 tickers = ['AAPL', 'MSFT', 'GOOGL']
 stock_data = fetch_stock_data(tickers)
