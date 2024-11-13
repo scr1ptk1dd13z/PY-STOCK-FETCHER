@@ -56,10 +56,12 @@ bash
 git clone https://github.com/yourusername/financial-analysis-toolkit.git
 ```
 ## 2. Install dependencies:
+python
 ```
 pip install -r requirements.txt
 ```
 ## 3. Run the main data collection script:
+python
 ```
 python script_v7.py
 ```
@@ -68,12 +70,14 @@ python script_v7.py
 ## Collecting Stock Data
 
 from script_v7 import fetch_stock_data
+python
 ```
 ### Fetch data for specific tickers
 tickers = ['AAPL', 'MSFT', 'GOOGL']
 stock_data = fetch_stock_data(tickers)
 ```
 ### Running Value Analysis
+python
 ```
 from Value import filter_stocks_value
 
