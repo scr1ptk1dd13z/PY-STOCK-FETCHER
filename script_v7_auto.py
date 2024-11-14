@@ -11,7 +11,7 @@ from collections import deque
 from datetime import datetime, timedelta
 
 class RateLimiter:
-    def __init__(self, calls_per_second=6):
+    def __init__(self, calls_per_second=4):
         self.calls_per_second = calls_per_second
         self.interval = 1.0 / calls_per_second
         self.last_call_times = deque(maxlen=calls_per_second)
