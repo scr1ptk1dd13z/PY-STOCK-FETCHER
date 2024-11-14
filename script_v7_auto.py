@@ -95,7 +95,7 @@ def fetch_stock_data(tickers):
     start_time = time.monotonic()
 
     # Create a thread pool with a maximum of 10 threads
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         # Submit multiple tasks to the pool
         futures = [executor.submit(fetch_ticker_data, ticker, index, total_tickers) for index, ticker in enumerate(tickers, start=1)]
         
