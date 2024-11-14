@@ -1,4 +1,3 @@
-# Required Imports
 import pandas as pd
 import yfinance as yf
 import time
@@ -9,11 +8,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 def fetch_ticker_data(ticker, index, total_tickers):
     print(f"Fetching data for {ticker} ({index}/{total_tickers})")
     stock = yf.Ticker(ticker)
-    retries = 3
+    retries = 5  # Allow for more retries if necessary
+    backoff_time = 5  # Initial backoff time (in seconds)
+    
     while retries > 0:
         try:
             # Fetch the stock's detailed info
             info = stock.info
+
             return {
                 "Symbol": ticker,
                 "Name": info.get("longName", "N/A"),
@@ -76,48 +78,70 @@ def fetch_ticker_data(ticker, index, total_tickers):
                 "Total Revenue": info.get("totalRevenue", "N/A"),
             }
         except Exception as e:
-            retries -= 1
-            if retries == 0:
-                print(f"Failed to fetch data for {ticker}: {e}")
+            if "Too Many Requests" in str(e):
+                print(f"Rate limit exceeded for {ticker}, retrying in {backoff_time} seconds...")
+                time.sleep(backoff_time)
+                retries -= 1
+                backoff_time *= 2  # Exponential backoff
+                if retries == 0:
+                    print(f"Failed to fetch data for {ticker} after multiple retries: {e}")
             else:
-                time.sleep(1)  # Wait a second before retrying
+                retries -= 1
+                if retries == 0:
+                    print(f"Failed to fetch data for {ticker}: {e}")
+                else:
+                    time.sleep(1)  # Wait a second before retrying
 
 # Function to get tickers array from file
 def get_tickers(exchange_name):
     with open(f"{exchange_name}_SYMBOLS.txt", "r") as file:
         return file.read().splitlines()
 
-# Function to fetch data for all tickers and collect the results in batches
-def fetch_stock_data(tickers, batch_size=100):
+# Function to fetch data for all tickers in batches
+def fetch_stock_data_in_batches(tickers, batch_size=500, wait_time=30):
+    stock_data = []
+    total_tickers = len(tickers)
+    
+    # Process in batches
+    for i in range(0, total_tickers, batch_size):
+        batch_tickers = tickers[i:i + batch_size]
+        print(f"Processing batch {i//batch_size + 1} of {len(tickers)//batch_size + 1}")
+        
+        # Fetch stock data for this batch
+        batch_data = fetch_stock_data(batch_tickers)
+        stock_data.extend(batch_data)
+        
+        # Wait between batches
+        if i + batch_size < total_tickers:
+            print(f"Waiting for {wait_time} seconds before next batch...")
+            time.sleep(wait_time)
+    
+    return pd.DataFrame(stock_data)
+
+# Function to fetch stock data for a list of tickers
+def fetch_stock_data(tickers):
     stock_data = []
     total_tickers = len(tickers)
     start_time = time.monotonic()
 
-    # Fetch data in batches
-    for batch_start in range(0, total_tickers, batch_size):
-        batch_end = min(batch_start + batch_size, total_tickers)
-        batch_tickers = tickers[batch_start:batch_end]
+    # Create a thread pool with a maximum of 10 threads
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit multiple tasks to the pool
+        futures = [executor.submit(fetch_ticker_data, ticker, index, total_tickers) for index, ticker in enumerate(tickers, start=1)]
         
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(fetch_ticker_data, ticker, index + batch_start + 1, total_tickers) for index, ticker in enumerate(batch_tickers)]
-            
-            # Collect results as each Future completes
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    if result:  # Only append if the result is not None
-                        stock_data.append(result)
-                except Exception as e:
-                    print(f"An error occurred: {e}")
-        
-        # Add a small delay between batches to avoid rate-limiting
-        print(f"Processed batch {batch_start // batch_size + 1}/{(total_tickers // batch_size) + 1}, pausing for 5 seconds...")
-        time.sleep(5)
+        # Collect results as each Future completes
+        for future in as_completed(futures):
+            try:
+                result = future.result()  # Retrieve the result from each Future
+                if result:  # Only append if the result is not None
+                    stock_data.append(result)
+            except Exception as e:
+                print(f"An error occurred: {e}")
 
-    elapsed_time = time.monotonic() - start_time
+    elapsed_time = time.monotonic() - start_time 
     print(f"All info fetched in {elapsed_time:.2f} seconds")
 
-    return pd.DataFrame(stock_data)
+    return stock_data
 
 if __name__ == "__main__":
     # Fetch tickers from the custom list and TSX Composite
@@ -128,7 +152,7 @@ if __name__ == "__main__":
     top_tickers = custom_tickers + canadian_tickers
 
     # Fetch stock data in batches
-    stock_df = fetch_stock_data(top_tickers, batch_size=100)
+    stock_df = fetch_stock_data_in_batches(top_tickers)
 
     # Get the current date
     current_date = datetime.now().strftime("%Y-%m-%d")
