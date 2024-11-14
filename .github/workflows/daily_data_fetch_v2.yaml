@@ -23,7 +23,7 @@ jobs:
           pip install pandas yfinance
 
       - name: Run stock data script
-        run: python script_v7_auto.py
+        run: python script_v8_auto.py
 
       - name: Commit and push generated CSV
         run: |
