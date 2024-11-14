@@ -3,7 +3,6 @@ import pandas as pd
 import yfinance as yf
 import time
 from datetime import datetime
-from google.colab import files
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Function to fetch data for each ticker
