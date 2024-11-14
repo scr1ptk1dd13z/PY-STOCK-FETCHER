@@ -1,4 +1,5 @@
 # Required Imports
+import os
 import pandas as pd
 import yfinance as yf
 import time
@@ -17,18 +18,13 @@ def fetch_ticker_data(ticker, index, total_tickers):
     delay = 1  # Initial delay of 1 second
     while retries > 0:
         try:
-            # Track the number of calls and pause if the threshold is reached
             if call_counter > 0 and call_counter % 500 == 0:
                 print("Reached 500 calls, pausing for 1 minute...")
                 time.sleep(60)  # Pause for 1 minute after every 500 calls
             
-            # Increment call counter and proceed with the request
             call_counter += 1
             
-            # Fetch the stock's detailed info
             info = stock.info
-
-            # Sleep for 1 second before each request to prevent rate limits
             time.sleep(1)
 
             return {
@@ -97,8 +93,8 @@ def fetch_ticker_data(ticker, index, total_tickers):
             if retries == 0:
                 print(f"Failed to fetch data for {ticker}: {e}")
             else:
-                time.sleep(delay)  # Exponential backoff on retries
-                delay *= 2  # Double delay time with each retry
+                time.sleep(delay)
+                delay *= 2
 
 # Function to get tickers array from file
 def get_tickers(exchange_name):
@@ -111,16 +107,13 @@ def fetch_stock_data(tickers):
     total_tickers = len(tickers)
     start_time = time.monotonic()
 
-    # Create a thread pool with a maximum of 5 threads
     with ThreadPoolExecutor(max_workers=5) as executor:
-        # Submit multiple tasks to the pool
         futures = [executor.submit(fetch_ticker_data, ticker, index, total_tickers) for index, ticker in enumerate(tickers, start=1)]
         
-        # Collect results as each Future completes
         for future in as_completed(futures):
             try:
-                result = future.result()  # Retrieve the result from each Future
-                if result:  # Only append if the result is not None
+                result = future.result()
+                if result:
                     stock_data.append(result)
             except Exception as e:
                 print(f"An error occurred: {e}")
@@ -135,17 +128,20 @@ if __name__ == "__main__":
     custom_tickers = get_tickers("NYSE")
     canadian_tickers = get_tickers("TSX")
 
-    # Combine both lists without limiting the number of stocks
+    # Combine both lists
     top_tickers = custom_tickers + canadian_tickers
 
     # Fetch stock data
     stock_df = fetch_stock_data(top_tickers)
 
+    # Create "Data" folder if it doesn't exist
+    os.makedirs("Data", exist_ok=True)
+
     # Get the current date
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-    # Define CSV file name with the current date
-    csv_file_name = f"daily_stock_data{current_date}.csv"
+    # Define CSV file path in the "Data" folder with the current date
+    csv_file_name = f"Data/daily_stock_data{current_date}.csv"
 
     # Save to CSV
     stock_df.to_csv(csv_file_name, index=False)
