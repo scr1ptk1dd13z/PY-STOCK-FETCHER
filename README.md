@@ -59,7 +59,7 @@ The project includes a GitHub Actions workflow for daily updates:
 ## 📊 Output Explanation
   - Data Columns
 
-| Column Name | Description | Example Value |
+| **Column Name** | **Description** | **Example Value** |
 | :--------------- | :--------------------------------- | :-------- |
 | Ticker | Company stock symbol | AAPL |
 | Market Cap | Total company market cap | $2.5 Trillion |
@@ -84,7 +84,7 @@ For easy visual analysis, export the generated Excel files into visualization to
   - 📊 Sector Analysis: Use dashboards to compare sectors or analyze trends within an industry.
 
 ## 📜 License
-This project is licensed under the MIT License, allowing you to use, modify, and distribute it freely under specified terms. For more details, see the LICENSE.md file.
+This project is licensed under the MIT License, allowing you to use, modify, and distribute it freely under specified terms. For more details, see the [LICENSE](LICENSE.md) file.
 
 ## 🤝 Contributing
 Contributions are welcome! If you’d like to improve the project, please fork the repository, make changes, and submit a pull request. Feel free to open issues for bug reports or feature requests.
