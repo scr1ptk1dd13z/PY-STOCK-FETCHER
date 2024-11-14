@@ -9,9 +9,9 @@ import random
 import logging
 
 class RateLimiter:
-    def __init__(self, calls_per_second=2):
+    def __init__(self, calls_per_second=1):
         self.calls_per_second = calls_per_second
-        self.interval = 1.0 / calls_per_second
+        self.interval = 4.0 / calls_per_second
         self.last_call = time.monotonic()
         self.lock = threading.Lock()
         
