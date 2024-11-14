@@ -72,7 +72,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create instances
-rate_limiter = RateLimiter(calls_per_second=4)
+rate_limiter = RateLimiter(calls_per_second=3)
 rate_monitor = RateMonitor(window_seconds=60)
 
 def print_stats():
@@ -181,7 +181,7 @@ def fetch_stock_data(tickers):
     stats_interval = 60
     last_stats_time = time.monotonic()
 
-    with ThreadPoolExecutor(max_workers=12) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
             executor.submit(fetch_ticker_data, ticker, index, total_tickers): ticker 
             for index, ticker in enumerate(tickers, start=1)
