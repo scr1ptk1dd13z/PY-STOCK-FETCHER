@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create a rate limiter instance
-rate_limiter = RateLimiter(calls_per_second=2)  # Adjust this value as needed
+rate_limiter = RateLimiter(calls_per_second=5)  # Adjust this value as needed
 
 def fetch_ticker_data(ticker, index, total_tickers):
     rate_limiter.wait()  # Wait before making the request
