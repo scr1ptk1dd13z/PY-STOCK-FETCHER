@@ -1,39 +1,35 @@
 # Required Imports
-import random
-import requests
 import pandas as pd
+import yfinance as yf
 import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import yfinance as yf
 
-# List of user agents to rotate
-user_agents = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Firefox/91.0.2",
-    "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0",
-    # Add more user agents if needed
-]
-
-# Function to rotate User-Agent after every 400 calls
-def rotate_user_agent(call_count, max_calls_per_agent=400):
-    return user_agents[call_count // max_calls_per_agent % len(user_agents)]
+# Global call counter
+call_counter = 0
 
 # Function to fetch data for each ticker
-def fetch_ticker_data(ticker, index, total_tickers, call_count):
+def fetch_ticker_data(ticker, index, total_tickers):
+    global call_counter
     print(f"Fetching data for {ticker} ({index}/{total_tickers})")
-    
-    headers = {
-        "User-Agent": rotate_user_agent(call_count),
-    }
-
     stock = yf.Ticker(ticker)
     retries = 3
+    delay = 1  # Initial delay of 1 second
     while retries > 0:
         try:
+            # Track the number of calls and pause if the threshold is reached
+            if call_counter > 0 and call_counter % 500 == 0:
+                print("Reached 500 calls, pausing for 1 minute...")
+                time.sleep(60)  # Pause for 1 minute after every 500 calls
+            
+            # Increment call counter and proceed with the request
+            call_counter += 1
+            
             # Fetch the stock's detailed info
             info = stock.info
+
+            # Sleep for 1 second before each request to prevent rate limits
+            time.sleep(1)
 
             return {
                 "Symbol": ticker,
@@ -101,7 +97,8 @@ def fetch_ticker_data(ticker, index, total_tickers, call_count):
             if retries == 0:
                 print(f"Failed to fetch data for {ticker}: {e}")
             else:
-                time.sleep(1)  # Wait a second before retrying
+                time.sleep(delay)  # Exponential backoff on retries
+                delay *= 2  # Double delay time with each retry
 
 # Function to get tickers array from file
 def get_tickers(exchange_name):
@@ -114,12 +111,10 @@ def fetch_stock_data(tickers):
     total_tickers = len(tickers)
     start_time = time.monotonic()
 
-    # Create a thread pool with a maximum of 10 threads
-    call_count = 0  # Initialize call counter
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    # Create a thread pool with a maximum of 5 threads
+    with ThreadPoolExecutor(max_workers=5) as executor:
         # Submit multiple tasks to the pool
-        futures = [executor.submit(fetch_ticker_data, ticker, index, total_tickers, call_count) 
-                   for index, ticker in enumerate(tickers, start=1)]
+        futures = [executor.submit(fetch_ticker_data, ticker, index, total_tickers) for index, ticker in enumerate(tickers, start=1)]
         
         # Collect results as each Future completes
         for future in as_completed(futures):
@@ -127,7 +122,6 @@ def fetch_stock_data(tickers):
                 result = future.result()  # Retrieve the result from each Future
                 if result:  # Only append if the result is not None
                     stock_data.append(result)
-                call_count += 1  # Increment the call count for each successful call
             except Exception as e:
                 print(f"An error occurred: {e}")
 
@@ -150,17 +144,10 @@ if __name__ == "__main__":
     # Get the current date
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-    # Define file names with the current date
-    csv_file_name = f"custom_us_canadian_stocks_{current_date}.csv"
-    excel_file_name = f"custom_us_canadian_stocks_{current_date}.xlsx"
+    # Define CSV file name with the current date
+    csv_file_name = f"daily_stock_data{current_date}.csv"
 
-    # Save to CSV and Excel
+    # Save to CSV
     stock_df.to_csv(csv_file_name, index=False)
-    stock_df.to_excel(excel_file_name, index=False)
 
-    print(
-        f"Data for custom US and Canadian stocks has been saved to {csv_file_name} and {excel_file_name}"
-    )
-
-    # Automatically download the CSV file
-    files.download(csv_file_name)
+    print(f"Data for custom US and Canadian stocks has been saved to {csv_file_name}")
