@@ -2,6 +2,7 @@ import pandas as pd
 import yfinance as yf
 import time
 from datetime import datetime
+from google.colab import files
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from queue import Queue
@@ -10,42 +11,14 @@ import logging
 from collections import deque
 from datetime import datetime, timedelta
 
-class RateMonitor:
-    def __init__(self, window_seconds=60):
-        self.requests = deque()
-        self.window_seconds = window_seconds
-        self.lock = threading.Lock()
-        self.error_count = 0
-        
-    def add_request(self, success=True):
-        now = time.time()
-        with self.lock:
-            # Add new request
-            self.requests.append((now, success))
-            # Remove old requests
-            while self.requests and self.requests[0][0] < now - self.window_seconds:
-                self.requests.popleft()
-                
-    def get_stats(self):
-        with self.lock:
-            if not self.requests:
-                return 0, 100, 0
-            
-            total = len(self.requests)
-            successful = sum(1 for _, success in self.requests if success)
-            requests_per_second = total / self.window_seconds
-            success_rate = (successful / total * 100) if total > 0 else 100
-            
-            return requests_per_second, success_rate, total
-
 class RateLimiter:
     def __init__(self, calls_per_second=6):
         self.calls_per_second = calls_per_second
         self.interval = 1.0 / calls_per_second
-        self.last_call = time.monotonic()
+        self.last_call_times = deque(maxlen=calls_per_second)
         self.lock = threading.Lock()
         
-        def wait(self):
+    def wait(self):
         with self.lock:
             current_time = time.monotonic()
             
@@ -66,6 +39,32 @@ class RateLimiter:
             
             self.last_call_times.append(current_time)
 
+class RateMonitor:
+    def __init__(self, window_seconds=60):
+        self.requests = deque()
+        self.window_seconds = window_seconds
+        self.lock = threading.Lock()
+        self.error_count = 0
+        
+    def add_request(self, success=True):
+        now = time.time()
+        with self.lock:
+            self.requests.append((now, success))
+            while self.requests and self.requests[0][0] < now - self.window_seconds:
+                self.requests.popleft()
+                
+    def get_stats(self):
+        with self.lock:
+            if not self.requests:
+                return 0, 100, 0
+            
+            total = len(self.requests)
+            successful = sum(1 for _, success in self.requests if success)
+            requests_per_second = total / self.window_seconds
+            success_rate = (successful / total * 100) if total > 0 else 100
+            
+            return requests_per_second, success_rate, total
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -74,7 +73,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create instances
-rate_limiter = RateLimiter(calls_per_second=6)  # Increased to 6 calls/second
+rate_limiter = RateLimiter(calls_per_second=6)
 rate_monitor = RateMonitor(window_seconds=60)
 
 def print_stats():
@@ -92,7 +91,7 @@ def fetch_ticker_data(ticker, index, total_tickers):
     
     stock = yf.Ticker(ticker)
     max_retries = 3
-    base_delay = 1  # Reduced base delay since we're being more aggressive
+    base_delay = 1
     
     for retry in range(max_retries):
         try:
@@ -180,11 +179,10 @@ def fetch_stock_data(tickers):
     start_time = time.monotonic()
     successful = 0
     failed = 0
-    stats_interval = 60  # Print stats every 60 seconds
+    stats_interval = 60
     last_stats_time = time.monotonic()
 
-    # Increased max_workers to match our more aggressive rate
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=12) as executor:
         futures = {
             executor.submit(fetch_ticker_data, ticker, index, total_tickers): ticker 
             for index, ticker in enumerate(tickers, start=1)
@@ -200,7 +198,6 @@ def fetch_stock_data(tickers):
                 else:
                     failed += 1
                 
-                # Print stats periodically
                 current_time = time.monotonic()
                 if current_time - last_stats_time >= stats_interval:
                     print_stats()
