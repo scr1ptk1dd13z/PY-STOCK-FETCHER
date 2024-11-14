@@ -1,105 +1,19 @@
+# Required Imports
 import pandas as pd
 import yfinance as yf
 import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
-from queue import Queue
-import random
-import logging
-from collections import deque
-from datetime import datetime, timedelta
 
-class RateLimiter:
-    def __init__(self, calls_per_second=4):
-        self.calls_per_second = calls_per_second
-        self.interval = 1.0 / calls_per_second
-        self.last_call_times = deque(maxlen=calls_per_second)
-        self.lock = threading.Lock()
-        
-    def wait(self):
-        with self.lock:
-            current_time = time.monotonic()
-            
-            # Remove old timestamps
-            while self.last_call_times and current_time - self.last_call_times[0] > 1.0:
-                self.last_call_times.popleft()
-            
-            # If we haven't hit our rate limit, don't wait
-            if len(self.last_call_times) < self.calls_per_second:
-                self.last_call_times.append(current_time)
-                return
-            
-            # Calculate wait time based on oldest request
-            if self.last_call_times:
-                wait_time = 1.0 - (current_time - self.last_call_times[0])
-                if wait_time > 0:
-                    time.sleep(wait_time)
-            
-            self.last_call_times.append(current_time)
-
-class RateMonitor:
-    def __init__(self, window_seconds=60):
-        self.requests = deque()
-        self.window_seconds = window_seconds
-        self.lock = threading.Lock()
-        self.error_count = 0
-        
-    def add_request(self, success=True):
-        now = time.time()
-        with self.lock:
-            self.requests.append((now, success))
-            while self.requests and self.requests[0][0] < now - self.window_seconds:
-                self.requests.popleft()
-                
-    def get_stats(self):
-        with self.lock:
-            if not self.requests:
-                return 0, 100, 0
-            
-            total = len(self.requests)
-            successful = sum(1 for _, success in self.requests if success)
-            requests_per_second = total / self.window_seconds
-            success_rate = (successful / total * 100) if total > 0 else 100
-            
-            return requests_per_second, success_rate, total
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Create instances
-rate_limiter = RateLimiter(calls_per_second=3)
-rate_monitor = RateMonitor(window_seconds=60)
-
-def print_stats():
-    requests_per_second, success_rate, total = rate_monitor.get_stats()
-    logger.info(f"""
-    Last 60 seconds stats:
-    - Requests per second: {requests_per_second:.1f}
-    - Success rate: {success_rate:.1f}%
-    - Total requests: {total}
-    """)
-
+# Function to fetch data for each ticker
 def fetch_ticker_data(ticker, index, total_tickers):
-    rate_limiter.wait()
-    logger.info(f"Fetching data for {ticker} ({index}/{total_tickers})")
-    
+    print(f"Fetching data for {ticker} ({index}/{total_tickers})")
     stock = yf.Ticker(ticker)
-    max_retries = 3
-    base_delay = 1
-    
-    for retry in range(max_retries):
+    retries = 3
+    while retries > 0:
         try:
+            # Fetch the stock's detailed info
             info = stock.info
-            rate_monitor.add_request(success=True)
-            
-            if retry > 0:
-                logger.info(f"Successfully retrieved {ticker} on attempt {retry + 1}")
-            
             return {
                 "Symbol": ticker,
                 "Name": info.get("longName", "N/A"),
@@ -161,91 +75,75 @@ def fetch_ticker_data(ticker, index, total_tickers):
                 "Forward EPS": info.get("forwardEps", "N/A"),
                 "Total Revenue": info.get("totalRevenue", "N/A"),
             }
-            
         except Exception as e:
-            rate_monitor.add_request(success=False)
-            if retry < max_retries - 1:
-                delay = (base_delay * (2 ** retry)) + random.uniform(0.1, 0.5)
-                logger.warning(f"Retry {retry + 1}/{max_retries} for {ticker} after {delay:.2f}s. Error: {str(e)}")
-                time.sleep(delay)
+            retries -= 1
+            if retries == 0:
+                print(f"Failed to fetch data for {ticker}: {e}")
             else:
-                logger.error(f"Failed to fetch data for {ticker} after {max_retries} attempts: {str(e)}")
-                return None
+                time.sleep(1)  # Wait a second before retrying
 
-def fetch_stock_data(tickers):
+# Function to get tickers array from file
+def get_tickers(exchange_name):
+    with open(f"{exchange_name}_SYMBOLS.txt", "r") as file:
+        return file.read().splitlines()
+
+# Function to fetch data for all tickers and collect the results in batches
+def fetch_stock_data(tickers, batch_size=100):
     stock_data = []
     total_tickers = len(tickers)
     start_time = time.monotonic()
-    successful = 0
-    failed = 0
-    stats_interval = 60
-    last_stats_time = time.monotonic()
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {
-            executor.submit(fetch_ticker_data, ticker, index, total_tickers): ticker 
-            for index, ticker in enumerate(tickers, start=1)
-        }
+    # Fetch data in batches
+    for batch_start in range(0, total_tickers, batch_size):
+        batch_end = min(batch_start + batch_size, total_tickers)
+        batch_tickers = tickers[batch_start:batch_end]
         
-        for future in as_completed(futures):
-            ticker = futures[future]
-            try:
-                result = future.result()
-                if result:
-                    stock_data.append(result)
-                    successful += 1
-                else:
-                    failed += 1
-                
-                current_time = time.monotonic()
-                if current_time - last_stats_time >= stats_interval:
-                    print_stats()
-                    last_stats_time = current_time
-                    
-            except Exception as e:
-                logger.error(f"Error processing {ticker}: {str(e)}")
-                failed += 1
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(fetch_ticker_data, ticker, index + batch_start + 1, total_tickers) for index, ticker in enumerate(batch_tickers)]
+            
+            # Collect results as each Future completes
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    if result:  # Only append if the result is not None
+                        stock_data.append(result)
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+        
+        # Add a small delay between batches to avoid rate-limiting
+        print(f"Processed batch {batch_start // batch_size + 1}/{(total_tickers // batch_size) + 1}, pausing for 5 seconds...")
+        time.sleep(5)
 
     elapsed_time = time.monotonic() - start_time
-    logger.info(f"""
-    Fetching completed in {elapsed_time:.2f} seconds
-    Successful: {successful}
-    Failed: {failed}
-    Success Rate: {(successful/total_tickers)*100:.2f}%
-    """)
+    print(f"All info fetched in {elapsed_time:.2f} seconds")
 
     return pd.DataFrame(stock_data)
 
-def get_tickers(exchange_name):
-    try:
-        with open(f"{exchange_name}_SYMBOLS.txt", "r") as file:
-            return file.read().splitlines()
-    except FileNotFoundError:
-        logger.error(f"Symbol file for {exchange_name} not found")
-        return []
-
 if __name__ == "__main__":
-    try:
-        custom_tickers = get_tickers("NYSE")
-        canadian_tickers = get_tickers("TSX")
-        
-        if not custom_tickers and not canadian_tickers:
-            raise ValueError("No tickers found in input files")
+    # Fetch tickers from the custom list and TSX Composite
+    custom_tickers = get_tickers("NYSE")
+    canadian_tickers = get_tickers("TSX")
 
-        top_tickers = custom_tickers + canadian_tickers
-        logger.info(f"Starting data collection for {len(top_tickers)} tickers")
+    # Combine both lists without limiting the number of stocks
+    top_tickers = custom_tickers + canadian_tickers
 
-        stock_df = fetch_stock_data(top_tickers)
+    # Fetch stock data in batches
+    stock_df = fetch_stock_data(top_tickers, batch_size=100)
 
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        csv_file_name = f"custom_us_canadian_stocks_{current_date}.csv"
-        excel_file_name = f"custom_us_canadian_stocks_{current_date}.xlsx"
+    # Get the current date
+    current_date = datetime.now().strftime("%Y-%m-%d")
 
-        stock_df.to_csv(csv_file_name, index=False)
-        stock_df.to_excel(excel_file_name, index=False)
+    # Define file names with the current date
+    csv_file_name = f"custom_us_canadian_stocks_{current_date}.csv"
+    excel_file_name = f"custom_us_canadian_stocks_{current_date}.xlsx"
 
-        logger.info(f"Data saved to {csv_file_name} and {excel_file_name}")
-        files.download(csv_file_name)
+    # Save to CSV and Excel
+    stock_df.to_csv(csv_file_name, index=False)
+    stock_df.to_excel(excel_file_name, index=False)
 
-    except Exception as e:
-        logger.error(f"Program failed: {str(e)}")
+    print(
+        f"Data for custom US and Canadian stocks has been saved to {csv_file_name} and {excel_file_name}"
+    )
+
+    # Automatically download the CSV file
+    files.download(csv_file_name)
