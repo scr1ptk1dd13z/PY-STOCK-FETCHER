@@ -45,13 +45,26 @@ class RateLimiter:
         self.last_call = time.monotonic()
         self.lock = threading.Lock()
         
-    def wait(self):
+        def wait(self):
         with self.lock:
             current_time = time.monotonic()
-            elapsed = current_time - self.last_call
-            if elapsed < self.interval:
-                time.sleep(self.interval - elapsed + random.uniform(0.05, 0.15))  # Reduced jitter
-            self.last_call = time.monotonic()
+            
+            # Remove old timestamps
+            while self.last_call_times and current_time - self.last_call_times[0] > 1.0:
+                self.last_call_times.popleft()
+            
+            # If we haven't hit our rate limit, don't wait
+            if len(self.last_call_times) < self.calls_per_second:
+                self.last_call_times.append(current_time)
+                return
+            
+            # Calculate wait time based on oldest request
+            if self.last_call_times:
+                wait_time = 1.0 - (current_time - self.last_call_times[0])
+                if wait_time > 0:
+                    time.sleep(wait_time)
+            
+            self.last_call_times.append(current_time)
 
 # Configure logging
 logging.basicConfig(
