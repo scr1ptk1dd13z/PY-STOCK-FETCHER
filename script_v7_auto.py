@@ -72,7 +72,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create instances
-rate_limiter = RateLimiter(calls_per_second=6)
+rate_limiter = RateLimiter(calls_per_second=4)
 rate_monitor = RateMonitor(window_seconds=60)
 
 def print_stats():
