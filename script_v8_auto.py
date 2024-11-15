@@ -6,25 +6,18 @@ import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Global call counter
-call_counter = 0
-
 # Function to fetch data for each ticker
 def fetch_ticker_data(ticker, index, total_tickers):
-    global call_counter
     print(f"Fetching data for {ticker} ({index}/{total_tickers})")
     stock = yf.Ticker(ticker)
     retries = 3
     delay = 1  # Initial delay of 1 second
     while retries > 0:
         try:
-            if call_counter > 0 and call_counter % 500 == 0:
-                print("Reached 500 calls, pausing for 1 minute...")
-                time.sleep(60)  # Pause for 1 minute after every 500 calls
-            
-            call_counter += 1
-            
+            # Fetch the stock's detailed info
             info = stock.info
+            
+            # Sleep for 1 second before each request to prevent rate limits
             time.sleep(1)
 
             return {
