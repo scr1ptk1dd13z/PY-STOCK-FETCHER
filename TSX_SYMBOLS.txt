@@ -37,8 +37,6 @@ APLI.to
 APR-UN.to
 APS.to
 AQN.to
-AR.to
-AR.to
 ARA.to
 ARE.to
 ARG.to
@@ -154,8 +152,6 @@ CNT.to
 COG.to
 CP.to
 CPH.to
-CPLF.to
-CPLF.to
 CPX.to
 CR.to
 CRDL.to
@@ -169,8 +165,8 @@ CSH-UN.to
 CSU.to
 CSW-A.to
 CSW-B.to
-CTC.to
 CTC-A.to
+CTC.to
 CTS.to
 CTX.to
 CU.to
@@ -250,8 +246,6 @@ EVO.to
 EXE.to
 EXN.to
 EXRO.to
-FANS.to
-FANS.to
 FAR.to
 FC.to
 FCD-UN.to
@@ -286,8 +280,8 @@ G.to
 GATO.to
 GAU.to
 GBT.to
-GCG.to
 GCG-A.to
+GCG.to
 GCL.to
 GDC.to
 GDI.to
@@ -379,7 +373,6 @@ KMP-UN.to
 KNT.to
 KPT.to
 KRN.to
-KRR.to
 KRR.to
 KSI.to
 KXS.to
@@ -498,7 +491,6 @@ PEY.to
 PHX.to
 PIF.to
 PKI.to
-PLC.to
 PLC.to
 PLZ-UN.to
 PMET.to
@@ -668,7 +660,6 @@ USA.to
 VBNK.to
 VCM.to
 VET.to
-VGCX.to
 VGCX.to
 VGZ.to
 VHI.to
