@@ -2,7 +2,8 @@ name: Generate and Commit Daily Stock Data
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs daily at midnight
+    - cron: '0 2 * * *'  # Runs daily at midnight
+  workflow_dispatch:  # Manually triggerable
 
 jobs:
   run-script:
