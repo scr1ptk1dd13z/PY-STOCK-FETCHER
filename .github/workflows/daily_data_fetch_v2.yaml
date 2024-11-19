@@ -30,6 +30,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://${{ secrets.PAT }}@github.com/${{ github.repository }}.git
-          git add Data/daily_stock_data*.csv
+          git add Data/nyse_daily_stock_data*.csv
           git commit -m "Update stock data CSV for $(date +'%Y-%m-%d')"
           git push
