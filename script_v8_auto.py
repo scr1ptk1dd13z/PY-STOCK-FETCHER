@@ -56,9 +56,18 @@ def fetch_all_data(tickers, delay_between_requests):
 
 if __name__ == "__main__":
     # Load your list of tickers
-    tickers = ["AAPL", "GOOG", "MSFT"]  # Replace with your full list of 11.5k tickers
+    tickers_file = "tickers.txt"  # Replace with your file containing tickers
+    if not os.path.exists(tickers_file):
+        print(f"Error: {tickers_file} not found.")
+        exit(1)
+
+    with open(tickers_file, "r") as f:
+        tickers = [line.strip() for line in f.readlines()]
+
     delay_between_requests = 1.5  # Adjust this based on your tolerance
-    output_file = "stock_data.csv"
+    output_dir = "Data"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, f"daily_stock_data_{datetime.now().strftime('%Y-%m-%d')}.csv")
 
     # Fetch data
     start_time = time.time()
