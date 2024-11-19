@@ -1,0 +1,35 @@
+name: Generate and Commit Daily Stock Data (S&P500)
+
+on:
+  schedule:
+    - cron: '0 1 * * *'  # Runs daily at midnight
+  workflow_dispatch:      # Manually triggerable
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          
+      - name: Run stock data script
+        run: |
+          python script_v9_auto.py
+          
+      - name: Commit and push generated CSV
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://${{ secrets.PAT }}@github.com/${{ github.repository }}.git
+          git add Data/daily_stock_data*.csv
+          git commit -m "Update stock data CSV for $(date +'%Y-%m-%d')"
+          git push
