@@ -23,7 +23,7 @@ jobs:
           
       - name: Run stock data script
         run: |
-          python script_v8_auto.py
+          python script_v9_auto.py
           
       - name: Commit and push generated CSV
         run: |
