@@ -48,60 +48,45 @@ def fetch_ticker_data(ticker, index, total_tickers):
             "EBITDA Margins": info.get("ebitdaMargins", "N/A"),
             "Gross Margins": info.get("grossMargins", "N/A"),
             "Operating Margins": info.get("operatingMargins", "N/A"),
-            "Profit Margins": info.get("profitMargins", "N/A"),
-            "Dividend Rate": info.get("dividendRate", "N/A"),
         }
     except Exception as e:
-        print(f"Error fetching data for {ticker}: {e}")
-        return {
-            "Symbol": ticker,
-            "Name": "Error",
-            "Sector": "Error",
-            "Industry": "Error",
-            "Country": "Error",
-        }
+        print(f"Failed to fetch data for {ticker}: {e}")
+        return None
 
-# Main function
+# Load tickers from S&P file
+def load_sp_tickers(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, "r") as file:
+            return [line.strip() for line in file.readlines()]
+    else:
+        raise FileNotFoundError(f"{file_path} not found.")
+
+# Main function to fetch data
 def main():
-    # Load symbols from files
-    nyse_symbols = []
-    tsx_symbols = []
+    sp_tickers_file = "S&P_SYMBOLS.txt"
+    sp_tickers = load_sp_tickers(sp_tickers_file)
+    total_tickers = len(sp_tickers)
 
-    # Read symbols from NYSE file
-    with open("NYSE_SYMBOLS.txt", "r") as nyse_file:
-        nyse_symbols = [line.strip() for line in nyse_file.readlines()]
+    print(f"Loaded {total_tickers} tickers from {sp_tickers_file}.")
 
-    # Read symbols from TSX file
-    with open("TSX_SYMBOLS.txt", "r") as tsx_file:
-        tsx_symbols = [line.strip() for line in tsx_file.readlines()]
-
-    # Combine all symbols
-    all_symbols = nyse_symbols + tsx_symbols
-
-    # Create an empty list to store the results
-    results = []
-
-    # Fetch data for each ticker using a ThreadPoolExecutor
-    total_tickers = len(all_symbols)
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(fetch_ticker_data, ticker, idx + 1, total_tickers)
-            for idx, ticker in enumerate(all_symbols)
-        ]
+    data = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {
+            executor.submit(fetch_ticker_data, ticker, idx + 1, total_tickers): ticker
+            for idx, ticker in enumerate(sp_tickers)
+        }
         for future in futures:
-            results.append(future.result())
+            result = future.result()
+            if result:
+                data.append(result)
 
-    # Convert results to a DataFrame
-    df = pd.DataFrame(results)
+    # Save the data to a CSV file
+    today = datetime.now().strftime("%Y-%m-%d")
+    output_folder = "Data"
+    os.makedirs(output_folder, exist_ok=True)
+    output_file = os.path.join(output_folder, f"daily_stock_data_{today}.csv")
+    pd.DataFrame(data).to_csv(output_file, index=False)
+    print(f"Data saved to {output_file}")
 
-    # Save to a CSV file
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    output_dir = "Data"
-    os.makedirs(output_dir, exist_ok=True)
-    csv_file = os.path.join(output_dir, f"daily_stock_data_{date_str}.csv")
-    df.to_csv(csv_file, index=False)
-    print(f"Data has been saved to {csv_file}")
-
-# Run the script
 if __name__ == "__main__":
     main()
