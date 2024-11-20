@@ -1,17 +1,19 @@
 import pandas as pd
-from Growth import filter_stocks_growth
-from Income import filter_stocks_income
-from Sector_Rotation import filter_stocks_sector_rotation
-from ESG import filter_stocks_esg
-from Small_Cap import filter_stocks_small_cap
-from Dividend import filter_stocks_dividend
-from Value import filter_stocks_value
-from Turnaround import filter_stocks_turnaround
-from Deep_Value import filter_stocks_deep_value
-from Quality import filter_stocks_quality
-from Momentum import filter_stocks_momentum
-from Defensive import filter_stocks_defensive
-from Contrarian import filter_stocks_contrarian
+
+# Import strategy functions from their respective modules
+from Analysis.Strategy.Investing.Growth import filter_stocks_growth
+from Analysis.Strategy.Investing.Income import filter_stocks_income
+from Analysis.Strategy.Investing.Sector_Rotation import filter_stocks_sector_rotation
+from Analysis.Strategy.Investing.ESG import filter_stocks_esg
+from Analysis.Strategy.Investing.Small_Cap import filter_stocks_small_cap
+from Analysis.Strategy.Investing.Dividend import filter_stocks_dividend
+from Analysis.Strategy.Investing.Value import filter_stocks_value
+from Analysis.Strategy.Investing.Turnaround import filter_stocks_turnaround
+from Analysis.Strategy.Investing.Deep_Value import filter_stocks_deep_value
+from Analysis.Strategy.Investing.Quality import filter_stocks_quality
+from Analysis.Strategy.Investing.Momentum import filter_stocks_momentum
+from Analysis.Strategy.Investing.Defensive import filter_stocks_defensive
+from Analysis.Strategy.Investing.Contrarian import filter_stocks_contrarian
 
 # Input and output file paths
 input_csv = "Data/nyse_daily_stock_data.csv"  # Adjust the path if necessary
