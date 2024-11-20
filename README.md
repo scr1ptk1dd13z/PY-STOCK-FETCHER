@@ -3,7 +3,7 @@
 This project provides a complete workflow for gathering, analyzing, and visualizing stock data from top US and Canadian companies, focusing on different investing strategies. The scripts can fetch detailed financial metrics, perform analysis using various investment philosophies, and output formatted files, making it an ideal toolkit for both short-term traders and long-term investors.
 
 ## ✨ Features
-- 🔍 Data Collection for the S&P 500 Companies: Retrieves stock data for companies in the S&P 500.
+- 🔍 Data Collection for the NYSE + NASDAQ Companies: Retrieves 4000+ tickers.
 - 📊 Comprehensive Financial Metrics: Collects valuation ratios, margins, growth rates, ownership data, and performance metrics.
 - 🔄 Resilient Data Fetching: Incorporates retry mechanisms to handle temporary connection issues.
 - 💾 Multiple Output Formats: Saves data in CSV and Excel, formatted for easy analysis.
