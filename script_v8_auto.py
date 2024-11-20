@@ -79,6 +79,7 @@ def fetch_ticker_data(ticker):
                         "Forward EPS": info.get("forwardEps", "N/A"),
                         "Total Revenue": info.get("totalRevenue", "N/A"),
                     }
+                )
     except Exception as e:
         print(f"Error fetching data for {ticker}: {e}")
         return None
