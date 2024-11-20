@@ -1,0 +1,46 @@
+name: Generate and Commit Daily Stock Data
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Runs daily at 1 AM
+  workflow_dispatch:      # Manually triggerable
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          
+      - name: Run stock data script
+        run: |
+          python script_v8_auto.py
+          
+      - name: Run strategy combination script
+        run: |
+          python combine_strategies.py
+
+      - name: Commit and push generated CSVs
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://${{ secrets.PAT }}@github.com/${{ github.repository }}.git
+
+          # Pull latest changes to avoid conflicts
+          git fetch --all
+          git rebase origin/main
+
+          # Commit and push changes
+          git add Data/nyse_daily_stock_data*.csv
+          git add Data/combined_output.csv  # Include combined CSV
+          git commit -m "Update stock data CSVs for $(date +'%Y-%m-%d')"
+          git push origin main
