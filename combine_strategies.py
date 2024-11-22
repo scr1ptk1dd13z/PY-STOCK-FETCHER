@@ -151,3 +151,14 @@ if __name__ == "__main__":
             print("No stocks passed the filters.")
         else:
             print(results[['Ticker', 'Price', f"{strategy_name.split()[0]} Score"]])
+
+# Convert to DataFrame and save as CSV
+df = pd.DataFrame(all_data)
+today = datetime.now().strftime("%Y-%m-%d")
+output_file = f"Data/nyse_daily_stock_analysis_{today}.csv"
+
+# Ensure output folder exists
+os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+df.to_csv(output_file, index=False)
+print(f"Data saved to {output_file}")
