@@ -16,7 +16,7 @@ def read_tickers(file_path: str) -> List[str]:
     Read stock tickers from a file.
     
     Args:
-        file_path (str): Path to the file containing tickers
+        file_path (str): Path to file containing tickers
     
     Returns:
         List[str]: List of stock tickers
@@ -36,6 +36,12 @@ def fetch_stock_info(ticker: str) -> Dict[str, Any]:
     """
     try:
         stock = Ticker(ticker)
+        # Get historical data first
+        data = stock.history(period="1d")
+        if data.empty:
+            logging.warning(f"No historical data found for {ticker}")
+            return None
+            
         info = stock.info
         
         return {
@@ -115,24 +121,27 @@ def fetch_data(tickers_file: str, output_file: str) -> None:
     logging.info(f"Fetching data for {len(tickers)} tickers...")
     
     stock_data = []
+    total_tickers = len(tickers)
     
-    for ticker in tickers:
+    for idx, ticker in enumerate(tickers, 1):
         try:
-            logging.info(f"Processing {ticker}...")
+            logging.info(f"Processing {ticker} ({idx}/{total_tickers})...")
             stock_info = fetch_stock_info(ticker)
             
             if stock_info:
                 stock_data.append(stock_info)
             
-            time.sleep(0.2)  # API rate limit handling
+            time.sleep(0.2)  # Original rate limit handling
             
         except Exception as e:
             logging.error(f"Failed to fetch data for {ticker}: {e}")
+            continue  # Skip to next ticker on error
     
     if stock_data:
         df = pd.DataFrame(stock_data)
         df.to_csv(output_file, index=False)
         logging.info(f"Data saved to {output_file}")
+        logging.info(f"Successfully processed {len(stock_data)} out of {total_tickers} tickers")
     else:
         logging.error("No data was collected. Check the errors above.")
 
