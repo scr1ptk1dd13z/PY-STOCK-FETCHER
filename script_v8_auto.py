@@ -1,49 +1,22 @@
-import time
+# Required Imports
+import os
 import pandas as pd
-from yfinance import Ticker
+import yfinance as yf
+import time
 from datetime import datetime
-import logging
-from typing import List, Dict, Any
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# Global call counter
+call_counter = 0
 
-def read_tickers(file_path: str) -> List[str]:
-    """
-    Read stock tickers from a file.
-    
-    Args:
-        file_path (str): Path to file containing tickers
-    
-    Returns:
-        List[str]: List of stock tickers
-    """
-    with open(file_path, 'r') as f:
-        return [line.strip() for line in f if line.strip()]
+# Function to fetch data for each ticker
+def fetch_ticker_data(ticker):
+    global call_counter
+    print(f"Fetching data for {ticker}")
+    stock = yf.Ticker(ticker)
+    call_counter += 1  # Increment call counter
 
-def fetch_stock_info(ticker: str) -> Dict[str, Any]:
-    """
-    Fetch detailed stock information for a given ticker.
-    
-    Args:
-        ticker (str): Stock ticker symbol
-    
-    Returns:
-        Dict[str, Any]: Dictionary containing stock information
-    """
     try:
-        stock = Ticker(ticker)
-        # Get historical data first
-        data = stock.history(period="1d")
-        if data.empty:
-            logging.warning(f"No historical data found for {ticker}")
-            return None
-            
         info = stock.info
-        
         return {
             "Symbol": ticker,
             "Name": info.get("longName", "N/A"),
@@ -106,47 +79,48 @@ def fetch_stock_info(ticker: str) -> Dict[str, Any]:
             "Total Revenue": info.get("totalRevenue", "N/A"),
         }
     except Exception as e:
-        logging.error(f"Error fetching info for {ticker}: {e}")
+        print(f"Error fetching data for {ticker}: {e}")
         return None
 
-def fetch_data(tickers_file: str, output_file: str) -> None:
-    """
-    Fetch stock data for tickers from file and save it to a CSV file.
-    
-    Args:
-        tickers_file (str): Path to file containing tickers
-        output_file (str): Path to save the output CSV
-    """
-    tickers = read_tickers(tickers_file)
-    logging.info(f"Fetching data for {len(tickers)} tickers...")
-    
-    stock_data = []
+# Read tickers from a file
+def load_tickers(file_path):
+    with open(file_path, "r") as f:
+        return [line.strip() for line in f.readlines()]
+
+# Main script logic
+def main():
+    # File containing the NYSE tickers
+    ticker_file = "NYSE_SYMBOLS.txt"
+    tickers = load_tickers(ticker_file)
     total_tickers = len(tickers)
-    
-    for idx, ticker in enumerate(tickers, 1):
-        try:
-            logging.info(f"Processing {ticker} ({idx}/{total_tickers})...")
-            stock_info = fetch_stock_info(ticker)
-            
-            if stock_info:
-                stock_data.append(stock_info)
-            
-            time.sleep(0.2)  # Original rate limit handling
-            
-        except Exception as e:
-            logging.error(f"Failed to fetch data for {ticker}: {e}")
-            continue  # Skip to next ticker on error
-    
-    if stock_data:
-        df = pd.DataFrame(stock_data)
-        df.to_csv(output_file, index=False)
-        logging.info(f"Data saved to {output_file}")
-        logging.info(f"Successfully processed {len(stock_data)} out of {total_tickers} tickers")
-    else:
-        logging.error("No data was collected. Check the errors above.")
+
+    print(f"Total tickers to process: {total_tickers}")
+
+    all_data = []
+    batch_size = 400  # Number of tickers per batch
+    wait_time = 4 * 60  # 4 minutes in seconds
+
+    for i in range(0, total_tickers, batch_size):
+        batch_tickers = tickers[i : i + batch_size]
+        print(f"Processing batch {i // batch_size + 1} with {len(batch_tickers)} tickers...")
+
+        batch_data = [fetch_ticker_data(ticker) for ticker in batch_tickers if ticker]
+        all_data.extend([data for data in batch_data if data])  # Exclude None results
+
+        if i + batch_size < total_tickers:  # If more batches are left
+            print(f"Batch {i // batch_size + 1} complete. Waiting for 4 minutes...")
+            time.sleep(wait_time)
+
+    # Convert to DataFrame and save as CSV
+    df = pd.DataFrame(all_data)
+    today = datetime.now().strftime("%Y-%m-%d")
+    output_file = f"Data/nyse_daily_stock_data_{today}.csv"
+
+    # Ensure output folder exists
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+    df.to_csv(output_file, index=False)
+    print(f"Data saved to {output_file}")
 
 if __name__ == "__main__":
-    tickers_file = "NYSE_SYMBOLS.txt"
-    output_file = f"Data/nyse_stock_data_{datetime.now().strftime('%Y-%m-%d')}.csv"
-    
-    fetch_data(tickers_file, output_file)
+    main()
