@@ -1,21 +1,25 @@
-# Required Imports
 import os
 import pandas as pd
 import yfinance as yf
 import time
-from datetime import datetime
 
-# Global call counter
-call_counter = 0
+# Constants
+INPUT_FILE = "NYSE_SYMBOLS.txt"
+OUTPUT_DIR = "Data"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "stock_data.csv")
+API_DELAY = 0.2  # Delay between API calls to avoid rate limiting
+BATCH_SIZE = 400  # Fetch this many tickers before pausing
+PAUSE_DURATION = 240  # Pause for 4 minutes after a batch
 
-# Function to fetch data for each ticker
-def fetch_ticker_data(ticker):
-    global call_counter
-    print(f"Fetching data for {ticker}")
-    stock = yf.Ticker(ticker)
-    call_counter += 1  # Increment call counter
+# Ensure output directory exists
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+def fetch_stock_info(ticker):
+    """
+    Fetch stock information using yfinance.
+    """
     try:
+        stock = yf.Ticker(ticker)
         info = stock.info
         return {
             "Symbol": ticker,
@@ -82,45 +86,37 @@ def fetch_ticker_data(ticker):
         print(f"Error fetching data for {ticker}: {e}")
         return None
 
-# Read tickers from a file
-def load_tickers(file_path):
-    with open(file_path, "r") as f:
-        return [line.strip() for line in f.readlines()]
-
-# Main script logic
 def main():
-    # File containing the NYSE tickers
-    ticker_file = "NYSE_SYMBOLS.txt"
-    tickers = load_tickers(ticker_file)
-    total_tickers = len(tickers)
+    # Read tickers from file
+    if not os.path.exists(INPUT_FILE):
+        print(f"Input file {INPUT_FILE} not found.")
+        return
 
-    print(f"Total tickers to process: {total_tickers}")
+    with open(INPUT_FILE, "r") as file:
+        tickers = [line.strip() for line in file.readlines()]
 
-    all_data = []
-    batch_size = 400  # Number of tickers per batch
-    wait_time = 4 * 60  # 4 minutes in seconds
+    stock_data = []
+    for i, ticker in enumerate(tickers):
+        print(f"Fetching data for {ticker} ({i + 1}/{len(tickers)})...")
+        stock_info = fetch_stock_info(ticker)
+        if stock_info:
+            stock_data.append(stock_info)
 
-    for i in range(0, total_tickers, batch_size):
-        batch_tickers = tickers[i : i + batch_size]
-        print(f"Processing batch {i // batch_size + 1} with {len(batch_tickers)} tickers...")
+        # Pause after each API call
+        time.sleep(API_DELAY)
 
-        batch_data = [fetch_ticker_data(ticker) for ticker in batch_tickers if ticker]
-        all_data.extend([data for data in batch_data if data])  # Exclude None results
+        # Pause after processing a batch
+        if (i + 1) % BATCH_SIZE == 0:
+            print(f"Pausing for {PAUSE_DURATION} seconds after {i + 1} tickers...")
+            time.sleep(PAUSE_DURATION)
 
-        if i + batch_size < total_tickers:  # If more batches are left
-            print(f"Batch {i // batch_size + 1} complete. Waiting for 4 minutes...")
-            time.sleep(wait_time)
-
-    # Convert to DataFrame and save as CSV
-    df = pd.DataFrame(all_data)
-    today = datetime.now().strftime("%Y-%m-%d")
-    output_file = f"Data/nyse_daily_stock_data_{today}.csv"
-
-    # Ensure output folder exists
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-
-    df.to_csv(output_file, index=False)
-    print(f"Data saved to {output_file}")
+    # Save data to CSV
+    if stock_data:
+        df = pd.DataFrame(stock_data)
+        df.to_csv(OUTPUT_FILE, index=False)
+        print(f"Stock data saved to {OUTPUT_FILE}")
+    else:
+        print("No stock data was fetched.")
 
 if __name__ == "__main__":
     main()
