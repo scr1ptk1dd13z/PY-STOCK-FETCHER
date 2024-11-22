@@ -1,62 +1,77 @@
 import pandas as pd
 
-# Import strategy functions from their respective modules
-from Analysis.Strategy.Investing.Growth import filter_stocks_growth
-from Analysis.Strategy.Investing.Income import filter_stocks_income
-from Analysis.Strategy.Investing.Sector_Rotation import filter_stocks_sector_rotation
-from Analysis.Strategy.Investing.ESG import filter_stocks_esg
-from Analysis.Strategy.Investing.Small_Cap import filter_stocks_small_cap
-from Analysis.Strategy.Investing.Dividend import filter_stocks_dividend
-from Analysis.Strategy.Investing.Value import filter_stocks_value
-from Analysis.Strategy.Investing.Turnaround import filter_stocks_turnaround
-from Analysis.Strategy.Investing.Deep_Value import filter_stocks_deep_value
-from Analysis.Strategy.Investing.Quality import filter_stocks_quality
-from Analysis.Strategy.Investing.Momentum import filter_stocks_momentum
-from Analysis.Strategy.Investing.Defensive import filter_stocks_defensive
-from Analysis.Strategy.Investing.Contrarian import filter_stocks_contrarian
+# Create mock in-memory data for testing
+def generate_mock_data():
+    """Generate mock data for analysis."""
+    data = {
+        "Ticker": ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"],
+        "Price": [150, 320, 2800, 720, 3500],
+        "High": [152, 325, 2850, 740, 3550],
+        "Low": [148, 315, 2750, 700, 3400],
+        "Close": [150, 320, 2800, 720, 3500],
+        "1-Year Return": [-0.15, 0.25, -0.05, 0.4, 0.1],
+        "Price to Book": [10, 15, 4, 12, 20],
+        "Trailing EPS": [5.2, 8.1, 10.5, 4.8, 12.0],
+        "Recommendation Mean": [2.8, 1.5, 3.0, 2.2, 2.9],
+        "PE Ratio": [30, 35, 25, 40, 28],
+        "FCF Yield": [0.03, 0.02, 0.05, 0.04, 0.01],
+        "Debt to Equity": [0.5, 0.8, 0.4, 0.6, 0.9],
+        "Dividend Yield": [0.03, 0.04, 0.02, 0.01, 0.05],
+        "Payout Ratio": [0.6, 0.5, 0.7, 0.8, 0.4],
+    }
+    return pd.DataFrame(data)
 
-# Input and output file paths
-input_csv = "Data/nyse_daily_stock_data.csv"  # Adjust the path if necessary
-output_csv = "Data/combined_output.csv"
+# Normalize a series for scoring
+def normalize(series, reverse=False):
+    if reverse:
+        return 1 - (series - series.min()) / (series.max() - series.min())
+    return (series - series.min()) / (series.max() - series.min())
 
-# Load the input data
-print(f"Loading input data from {input_csv}...")
-df = pd.read_csv(input_csv)
+# Contrarian Strategy
+def filter_stocks_contrarian(df):
+    filtered_df = df[
+        (df['1-Year Return'] < -0.1) &
+        (df['Price to Book'] < 1.0) &
+        (df['Trailing EPS'] > 0) &
+        (df['Recommendation Mean'] <= 3.0)
+    ].copy()
 
-# Initialize an empty list to store results from each strategy
-results = []
+    filtered_df['Contrarian Score'] = (
+        (1 / filtered_df['Price to Book']) * 0.5 +
+        (1 - filtered_df['1-Year Return']) * 0.5
+    )
 
-# Define a helper function to run a strategy and append results
-def run_strategy(filter_function, strategy_name):
-    try:
-        print(f"Running {strategy_name} strategy...")
-        filtered_df = filter_function(df)
-        filtered_df["Strategy"] = strategy_name  # Add a strategy column
-        results.append(filtered_df)
-    except Exception as e:
-        print(f"Error in {strategy_name} strategy: {e}")
+    return filtered_df.sort_values(by="Contrarian Score", ascending=False).head(3)
 
-# Run all strategies
-run_strategy(filter_stocks_growth, "Growth")
-run_strategy(filter_stocks_income, "Income")
-run_strategy(filter_stocks_sector_rotation, "Sector Rotation")
-run_strategy(filter_stocks_esg, "ESG")
-run_strategy(filter_stocks_small_cap, "Small-Cap")
-run_strategy(filter_stocks_dividend, "Dividend")
-run_strategy(filter_stocks_value, "Value")
-run_strategy(filter_stocks_turnaround, "Turnaround")
-run_strategy(filter_stocks_deep_value, "Deep Value")
-run_strategy(filter_stocks_quality, "Quality")
-run_strategy(filter_stocks_momentum, "Momentum")
-run_strategy(filter_stocks_defensive, "Defensive")
-run_strategy(filter_stocks_contrarian, "Contrarian")
+# Dividend Strategy
+def filter_stocks_dividend(df):
+    filtered_df = df[
+        (df['Dividend Yield'] > 0.03) &
+        (df['Payout Ratio'] < 0.7) &
+        (df['FCF Yield'] > 0)
+    ].copy()
 
-# Combine all results into a single DataFrame
-print("Combining results from all strategies...")
-combined_results = pd.concat(results, ignore_index=True)
+    filtered_df['Dividend Score'] = (
+        normalize(filtered_df['Dividend Yield']) * 0.4 +
+        normalize(1 / filtered_df['Payout Ratio']) * 0.3 +
+        normalize(filtered_df['FCF Yield']) * 0.3
+    )
 
-# Save the combined results to CSV
-print(f"Saving combined results to {output_csv}...")
-combined_results.to_csv(output_csv, index=False)
+    return filtered_df.sort_values(by="Dividend Score", ascending=False).head(3)
 
-print("Done!")
+# Main Execution
+if __name__ == "__main__":
+    # Generate mock data
+    df = generate_mock_data()
+
+    # Strategy functions
+    strategies = {
+        "Contrarian Strategy": filter_stocks_contrarian,
+        "Dividend Strategy": filter_stocks_dividend,
+    }
+
+    # Run each strategy and print results
+    for strategy_name, strategy_func in strategies.items():
+        print(f"\n--- {strategy_name} ---")
+        results = strategy_func(df)
+        print(results[['Ticker', 'Price', f"{strategy_name.split()[0]} Score"]])
