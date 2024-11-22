@@ -1,20 +1,29 @@
 name: Run Stock Data Pipeline
-'on':
-  workflow_dispatch: null
+
+on:
+  workflow_dispatch:
+
 jobs:
   stock-data-pipeline:
     runs-on: ubuntu-latest
+
     steps:
+      # Step 1: Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      # Step 2: Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      # Step 3: Run stock data script and combined strategy analysis
       - name: Run stock data script and analysis
         run: |
           import os
@@ -34,18 +43,14 @@ jobs:
           # Step 3: Perform combined strategy analysis
           combined_results_file = f'Data/combined_results_{today}.txt'
           combine_analysis(stock_data, combined_results_file)
+
+      # Step 4: Commit and push the results
       - name: Commit and push generated files
         env:
-          GITHUB_TOKEN: '${{ secrets.PAT }}'
-        run: >
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        run: |
           git config --global user.name "github-actions[bot]"
-
-          git config --global user.email
-          "github-actions[bot]@users.noreply.github.com"
-
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add Data/stock_data_*.csv Data/combined_results_*.txt
-
-          git commit -m "Update stock data and analysis for $(date +'%Y-%m-%d')"
-          || echo "No changes to commit"
-
+          git commit -m "Update stock data and analysis for $(date +'%Y-%m-%d')" || echo "No changes to commit"
           git push origin main
