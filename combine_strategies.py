@@ -1,11 +1,7 @@
-import os
 import pandas as pd
 from datetime import datetime
 
-# Constants
-OUTPUT_DIR = "Data"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
+# Strategy functions
 def contrarian_strategy(df):
     filtered_df = df[
         (df['1-Year Return'] < -0.1) &
@@ -116,7 +112,10 @@ def value_strategy(df):
     filtered_df['Strategy'] = 'Value'
     return filtered_df
 
-def combine_results(df):
+def combine_analysis(stock_data, output_file):
+    """
+    Run combined analysis on stock data and write results to a file.
+    """
     strategies = {
         "Contrarian": contrarian_strategy,
         "Deep Value": deep_value_strategy,
@@ -132,30 +131,32 @@ def combine_results(df):
     all_results = []
     for name, strategy_func in strategies.items():
         print(f"Running {name} strategy...")
-        result = strategy_func(df)
+        result = strategy_func(stock_data)
         if not result.empty:
             all_results.append(result)
 
-    if all_results:
-        combined = pd.concat(all_results, ignore_index=True)
-        today = datetime.now().strftime("%Y-%m-%d")
-        output_file = os.path.join(OUTPUT_DIR, f"combined_results_{today}.txt")
-        with open(output_file, "w") as f:
+    combined_results = pd.concat(all_results, ignore_index=True) if all_results else pd.DataFrame()
+
+    with open(output_file, "w") as f:
+        if not combined_results.empty:
             f.write("Combined Strategy Results:\n")
-            f.write(combined.to_string(index=False))
-        print(f"Combined results saved to {output_file}")
-    else:
-        print("No stocks passed the strategies.")
+            f.write(combined_results.to_string(index=False))
+        else:
+            f.write("No stocks passed the combined analysis.")
+    print(f"Combined results saved to {output_file}")
 
 def main():
-    input_file = os.path.join(OUTPUT_DIR, "stock_data.csv")
+    input_file = "Data/stock_data.csv"
+    today = datetime.now().strftime("%Y-%m-%d")
+    output_file = f"Data/combined_results_{today}.txt"
+
     if not os.path.exists(input_file):
         print(f"Input file {input_file} not found.")
         return
 
     stock_data = pd.read_csv(input_file)
     print("Loaded stock data.")
-    combine_results(stock_data)
+    combine_analysis(stock_data, output_file)
 
 if __name__ == "__main__":
     main()
