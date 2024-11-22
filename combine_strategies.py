@@ -1,9 +1,9 @@
 import os
 import pandas as pd
+from datetime import datetime
 
 # Constants
-INPUT_FILE = "Data/stock_data.csv"
-OUTPUT_DIR = "Data/Strategy_Outputs"
+OUTPUT_DIR = "Data"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def contrarian_strategy(df):
@@ -105,7 +105,6 @@ def value_strategy(df):
         (df['Debt to Equity'] < 1) &
         (df['Free Cash Flow'] > 0)
     ].copy()
-    # Calculate Value Score
     filtered_df['Value Score'] = (
         (1 - (filtered_df['PE Ratio'] / filtered_df['PE Ratio'].max())) * 0.2 +
         (1 - (filtered_df['Price to Book'] / filtered_df['Price to Book'].max())) * 0.15 +
@@ -117,45 +116,46 @@ def value_strategy(df):
     filtered_df['Strategy'] = 'Value'
     return filtered_df
 
-def combine_results(df, strategies):
+def combine_results(df):
+    strategies = {
+        "Contrarian": contrarian_strategy,
+        "Deep Value": deep_value_strategy,
+        "Defensive": defensive_strategy,
+        "Dividend": dividend_strategy,
+        "ESG": esg_strategy,
+        "Growth": growth_strategy,
+        "Momentum": momentum_strategy,
+        "Quality": quality_strategy,
+        "Value": value_strategy,
+    }
+
     all_results = []
-    for strategy_name, strategy_func in strategies.items():
-        print(f"Running {strategy_name} strategy...")
+    for name, strategy_func in strategies.items():
+        print(f"Running {name} strategy...")
         result = strategy_func(df)
         if not result.empty:
-            result.to_csv(os.path.join(OUTPUT_DIR, f"{strategy_name}_results.csv"), index=False)
             all_results.append(result)
+
     if all_results:
         combined = pd.concat(all_results, ignore_index=True)
-        combined.to_csv(os.path.join(OUTPUT_DIR, "combined_results.csv"), index=False)
-        print("All strategy results combined and saved.")
+        today = datetime.now().strftime("%Y-%m-%d")
+        output_file = os.path.join(OUTPUT_DIR, f"combined_results_{today}.txt")
+        with open(output_file, "w") as f:
+            f.write("Combined Strategy Results:\n")
+            f.write(combined.to_string(index=False))
+        print(f"Combined results saved to {output_file}")
     else:
         print("No stocks passed the strategies.")
 
 def main():
-    # Load stock data
-    if not os.path.exists(INPUT_FILE):
-        print(f"Input file {INPUT_FILE} not found.")
+    input_file = os.path.join(OUTPUT_DIR, "stock_data.csv")
+    if not os.path.exists(input_file):
+        print(f"Input file {input_file} not found.")
         return
-    
-    df = pd.read_csv(INPUT_FILE)
+
+    stock_data = pd.read_csv(input_file)
     print("Loaded stock data.")
-
-    # Define strategies
-    strategies = {
-        'Contrarian': contrarian_strategy,
-        'Deep Value': deep_value_strategy,
-        'Defensive': defensive_strategy,
-        'Dividend': dividend_strategy,
-        'ESG': esg_strategy,
-        'Growth': growth_strategy,
-        'Momentum': momentum_strategy,
-        'Quality': quality_strategy,
-        'Value': value_strategy,
-    }
-
-    # Run strategies and combine results
-    combine_results(df, strategies)
+    combine_results(stock_data)
 
 if __name__ == "__main__":
     main()
