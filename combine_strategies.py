@@ -1,68 +1,39 @@
+import os
 import pandas as pd
 
-# Generate mock data
-def generate_mock_data():
-    """Generate mock data for analysis."""
-    data = {
-        "Ticker": ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"],
-        "Price": [150, 320, 2800, 720, 3500],
-        "1-Year Return": [-0.15, 0.25, -0.05, 0.4, 0.1],
-        "Price to Book": [0.8, 2.5, 4, 1.2, 3.5],
-        "Trailing EPS": [5.2, 8.1, 10.5, 4.8, 12.0],
-        "Recommendation Mean": [2.8, 1.5, 3.0, 2.2, 2.9],
-        "PE Ratio": [30, 35, 25, 40, 28],
-        "FCF Yield": [0.03, 0.02, 0.05, 0.04, 0.01],
-        "Debt to Equity": [0.5, 0.8, 0.4, 0.6, 0.9],
-        "Dividend Yield": [0.03, 0.04, 0.02, 0.01, 0.05],
-        "Payout Ratio": [0.6, 0.5, 0.7, 0.8, 0.4],
-        "Beta": [0.9, 1.2, 1.1, 0.8, 0.95],
-        "Current Ratio": [1.8, 1.2, 1.6, 1.9, 1.7],
-        "Quick Ratio": [1.2, 1.1, 1.5, 1.3, 1.4],
-        "Profit Margins": [0.06, 0.08, 0.12, 0.05, 0.09],
-        "Operating Margins": [0.12, 0.18, 0.22, 0.1, 0.15],
-        "Revenue Growth (YoY)": [0.2, 0.15, 0.1, 0.25, 0.18],
-        "Earnings Growth (YoY)": [0.18, 0.14, 0.2, 0.3, 0.12],
-        "Market Cap": [1.5e9, 1.8e12, 2.2e12, 700e9, 1.3e12],
-        "Average Volume": [500000, 800000, 300000, 200000, 600000],
-    }
-    return pd.DataFrame(data)
+# Constants
+INPUT_FILE = "Data/stock_data.csv"
+OUTPUT_DIR = "Data/Strategy_Outputs"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Normalize scores
-def normalize(series, reverse=False):
-    if reverse:
-        return 1 - (series - series.min()) / (series.max() - series.min())
-    return (series - series.min()) / (series.max() - series.min())
-
-# Strategy Functions
-def filter_stocks_contrarian(df):
+def contrarian_strategy(df):
     filtered_df = df[
         (df['1-Year Return'] < -0.1) &
         (df['Price to Book'] < 1.0) &
         (df['Trailing EPS'] > 0) &
         (df['Recommendation Mean'] <= 3.0)
     ].copy()
-    filtered_df['Contrarian Score'] = (
-        normalize(1 / filtered_df['Price to Book']) * 0.5 +
-        normalize(1 - filtered_df['1-Year Return']) * 0.5
-    )
-    return filtered_df.sort_values(by="Contrarian Score", ascending=False).head(3)
+    filtered_df['Strategy'] = 'Contrarian'
+    return filtered_df
 
-def filter_stocks_deep_value(df):
+def deep_value_strategy(df):
+    df = df.dropna(subset=['Price to Book', 'PE Ratio', 'Free Cash Flow', 'Debt to Equity'])
     filtered_df = df[
         (df['Price to Book'] < 1.0) &
         (df['PE Ratio'] < 10) &
-        (df['FCF Yield'] > 0.05) &
+        (df['Free Cash Flow'] > 0.05) &
         (df['Debt to Equity'] < 1.0)
     ].copy()
     filtered_df['Deep Value Score'] = (
-        normalize(1 / filtered_df['Price to Book']) * 0.3 +
-        normalize(1 / filtered_df['PE Ratio']) * 0.3 +
-        normalize(filtered_df['FCF Yield']) * 0.2 +
-        normalize(1 / (filtered_df['Debt to Equity'] + 1)) * 0.2
+        (1 / filtered_df['Price to Book'] * 0.3) +
+        (1 / filtered_df['PE Ratio'] * 0.3) +
+        (filtered_df['Free Cash Flow'] * 0.2) +
+        (1 / (filtered_df['Debt to Equity'] + 1) * 0.2)
     )
-    return filtered_df.sort_values(by="Deep Value Score", ascending=False).head(3)
+    filtered_df['Strategy'] = 'Deep Value'
+    return filtered_df
 
-def filter_stocks_defensive(df):
+def defensive_strategy(df):
     filtered_df = df[
         (df['Beta'] < 1.0) &
         (df['PE Ratio'] > 0) &
@@ -73,92 +44,118 @@ def filter_stocks_defensive(df):
         (df['Operating Margins'] > 0.10) &
         (df['Debt to Equity'] < 0.5)
     ].copy()
-    filtered_df['Defensive Score'] = (
-        normalize(1 / filtered_df['Beta']) * 0.3 +
-        normalize(filtered_df['Profit Margins']) * 0.3 +
-        normalize(filtered_df['Operating Margins']) * 0.4
-    )
-    return filtered_df.sort_values(by="Defensive Score", ascending=False).head(3)
+    filtered_df['Strategy'] = 'Defensive'
+    return filtered_df
 
-def filter_stocks_dividend(df):
+def dividend_strategy(df):
     filtered_df = df[
         (df['Dividend Yield'] > 0.03) &
         (df['Payout Ratio'] < 0.7) &
-        (df['FCF Yield'] > 0)
+        (df['Free Cash Flow'] > 0) &
+        (df['Five-Year Avg. Dividend Yield'] > 0.02)
     ].copy()
-    filtered_df['Dividend Score'] = (
-        normalize(filtered_df['Dividend Yield']) * 0.4 +
-        normalize(1 / filtered_df['Payout Ratio']) * 0.3 +
-        normalize(filtered_df['FCF Yield']) * 0.3
-    )
-    return filtered_df.sort_values(by="Dividend Score", ascending=False).head(3)
+    filtered_df['Strategy'] = 'Dividend'
+    return filtered_df
 
-def filter_stocks_momentum(df):
+def esg_strategy(df):
+    filtered_df = df[
+        (df['Revenue Growth (YoY)'] > 0.05) &
+        (df['Profit Margins'] > 0.1) &
+        (df['Current Ratio'] >= 1.5) &
+        (df['Debt to Equity'] < 1.0)
+    ].copy()
+    filtered_df['Strategy'] = 'ESG'
+    return filtered_df
+
+def growth_strategy(df):
+    filtered_df = df[
+        (df['Revenue Growth (YoY)'] > 0.15) &
+        (df['Earnings Growth (YoY)'] > 0.15) &
+        (df['PE Ratio'] > 20) &
+        (df['Price to Sales'] > 2)
+    ].copy()
+    filtered_df['Strategy'] = 'Growth'
+    return filtered_df
+
+def momentum_strategy(df):
     filtered_df = df[
         (df['1-Year Return'] > 0.2) &
         (df['Average Volume'] > 100000) &
         (df['Beta'] >= 1.0)
     ].copy()
-    filtered_df['Momentum Score'] = (
-        normalize(filtered_df['1-Year Return']) * 0.6 +
-        normalize(filtered_df['Average Volume']) * 0.4
-    )
-    return filtered_df.sort_values(by="Momentum Score", ascending=False).head(3)
+    filtered_df['Strategy'] = 'Momentum'
+    return filtered_df
 
-def filter_stocks_growth(df):
-    filtered_df = df[
-        (df['Revenue Growth (YoY)'] > 0.15) &
-        (df['Earnings Growth (YoY)'] > 0.15) &
-        (df['PE Ratio'] > 20)
-    ].copy()
-    filtered_df['Growth Score'] = (
-        normalize(filtered_df['Revenue Growth (YoY)']) * 0.5 +
-        normalize(filtered_df['Earnings Growth (YoY)']) * 0.5
-    )
-    return filtered_df.sort_values(by="Growth Score", ascending=False).head(3)
-
-def filter_stocks_quality(df):
+def quality_strategy(df):
     filtered_df = df[
         (df['PE Ratio'] > 0) &
         (df['Price to Book'] < 3.0) &
-        (df['Profit Margins'] > 0.1) &
-        (df['Operating Margins'] > 0.1)
+        (df['Return on Assets'] > 0.1) &
+        (df['Return on Equity'] > 0.15)
     ].copy()
-    filtered_df['Quality Score'] = (
-        normalize(filtered_df['Profit Margins']) * 0.5 +
-        normalize(filtered_df['Operating Margins']) * 0.5
+    filtered_df['Strategy'] = 'Quality'
+    return filtered_df
+
+def value_strategy(df):
+    filtered_df = df[
+        (df['PE Ratio'] < 15) &
+        (df['Price to Book'] < 3) &
+        (df['PEG Ratio'] < 1) &
+        (df['Dividend Yield'] > 0.02) &
+        (df['Debt to Equity'] < 1) &
+        (df['Free Cash Flow'] > 0)
+    ].copy()
+    # Calculate Value Score
+    filtered_df['Value Score'] = (
+        (1 - (filtered_df['PE Ratio'] / filtered_df['PE Ratio'].max())) * 0.2 +
+        (1 - (filtered_df['Price to Book'] / filtered_df['Price to Book'].max())) * 0.15 +
+        (1 - (filtered_df['PEG Ratio'] / filtered_df['PEG Ratio'].max())) * 0.15 +
+        (filtered_df['Dividend Yield'] / filtered_df['Dividend Yield'].max()) * 0.2 +
+        (1 - (filtered_df['Debt to Equity'] / filtered_df['Debt to Equity'].max())) * 0.15 +
+        (filtered_df['Free Cash Flow'] / filtered_df['Free Cash Flow'].max()) * 0.15
     )
-    return filtered_df.sort_values(by="Quality Score", ascending=False).head(3)
+    filtered_df['Strategy'] = 'Value'
+    return filtered_df
 
-# Main Execution
-if __name__ == "__main__":
-    df = generate_mock_data()
+def combine_results(df, strategies):
+    all_results = []
+    for strategy_name, strategy_func in strategies.items():
+        print(f"Running {strategy_name} strategy...")
+        result = strategy_func(df)
+        if not result.empty:
+            result.to_csv(os.path.join(OUTPUT_DIR, f"{strategy_name}_results.csv"), index=False)
+            all_results.append(result)
+    if all_results:
+        combined = pd.concat(all_results, ignore_index=True)
+        combined.to_csv(os.path.join(OUTPUT_DIR, "combined_results.csv"), index=False)
+        print("All strategy results combined and saved.")
+    else:
+        print("No stocks passed the strategies.")
 
+def main():
+    # Load stock data
+    if not os.path.exists(INPUT_FILE):
+        print(f"Input file {INPUT_FILE} not found.")
+        return
+    
+    df = pd.read_csv(INPUT_FILE)
+    print("Loaded stock data.")
+
+    # Define strategies
     strategies = {
-        "Contrarian Strategy": filter_stocks_contrarian,
-        "Deep Value Strategy": filter_stocks_deep_value,
-        "Defensive Strategy": filter_stocks_defensive,
-        "Dividend Strategy": filter_stocks_dividend,
-        "Momentum Strategy": filter_stocks_momentum,
-        "Growth Strategy": filter_stocks_growth,
-        "Quality Strategy": filter_stocks_quality,
+        'Contrarian': contrarian_strategy,
+        'Deep Value': deep_value_strategy,
+        'Defensive': defensive_strategy,
+        'Dividend': dividend_strategy,
+        'ESG': esg_strategy,
+        'Growth': growth_strategy,
+        'Momentum': momentum_strategy,
+        'Quality': quality_strategy,
+        'Value': value_strategy,
     }
 
-    for strategy_name, strategy_func in strategies.items():
-        print(f"\n--- {strategy_name} ---")
-        results = strategy_func(df)
-        if results.empty:
-            print("No stocks passed the filters.")
-        else:
-            print(results[['Ticker', 'Price', f"{strategy_name.split()[0]} Score"]])
+    # Run strategies and combine results
+    combine_results(df, strategies)
 
-# Convert to DataFrame and save as CSV
-df = pd.DataFrame(all_data)
-today = datetime.now().strftime("%Y-%m-%d")
-output_file = f"Data/nyse_daily_stock_analysis_{today}.csv"
-
-# Ensure output folder exists
-os.makedirs(os.path.dirname(output_file), exist_ok=True)
-
-df.to_csv(output_file, index=False)
-print(f"Data saved to {output_file}")
+if __name__ == "__main__":
+    main()
