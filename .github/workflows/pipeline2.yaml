@@ -30,11 +30,13 @@ jobs:
       - name: Run stock data script
         run: |
           python script_v8_auto.py
+          ls -l Data/  # Log directory contents for verification
 
       # Run Strategy Combination Script
       - name: Run strategy combination script
         run: |
           python combine_strategies.py
+          ls -l Data/  # Log directory contents for verification
 
       # Commit and Push CSVs
       - name: Commit and push generated CSVs
@@ -44,21 +46,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Stash any changes to avoid conflicts
-          git stash --include-untracked
-
-          # Pull the latest changes from the main branch
-          git pull --rebase || git rebase --abort  # Ensure rebase doesn't break the flow
-
-          # Apply the stash back (if there were any changes)
-          git stash pop || true  # No error if there's nothing to stash
-
-          # Stage all generated files
+          git pull --rebase
           git add Data/*.csv
-
-          # Commit the changes
           git commit -m "Update stock data CSVs for $(date +'%Y-%m-%d')" || echo "No changes to commit"
-
-          # Push the changes to the repository
           git push origin main
-
