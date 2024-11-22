@@ -43,7 +43,22 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase
+
+          # Stash any changes to avoid conflicts
+          git stash --include-untracked
+
+          # Pull the latest changes from the main branch
+          git pull --rebase || git rebase --abort  # Ensure rebase doesn't break the flow
+
+          # Apply the stash back (if there were any changes)
+          git stash pop || true  # No error if there's nothing to stash
+
+          # Stage all generated files
           git add Data/*.csv
-          git commit -m "Update stock data CSVs for $(date +'%Y-%m-%d')"
-          git push
+
+          # Commit the changes
+          git commit -m "Update stock data CSVs for $(date +'%Y-%m-%d')" || echo "No changes to commit"
+
+          # Push the changes to the repository
+          git push origin main
+
