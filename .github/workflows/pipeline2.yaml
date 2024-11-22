@@ -2,45 +2,63 @@ name: Generate and Commit Daily Stock Data
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # Runs daily at 1 AM
-  workflow_dispatch:      # Manually triggerable
+    - cron: '0 3 * * *'  # Runs daily at 3 AM UTC
+  workflow_dispatch:      # Allows manual triggering of the workflow
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
+
     steps:
+      # Checkout Repository
       - name: Check out repository
         uses: actions/checkout@v3
-        
+
+      # Setup Python Environment
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
           python-version: '3.x'
-          
+
+      # Install Dependencies
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
-          
+
+      # Run Main Stock Data Script
       - name: Run stock data script
         run: |
           python script_v8_auto.py
-          
+
+      # Run Strategy Combination Script
       - name: Run strategy combination script
         run: |
           python combine_strategies.py
 
+      # Commit and Push CSVs
       - name: Commit and push generated CSVs
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://${{ secrets.PAT }}@github.com/${{ github.repository }}.git
 
-          # Pull latest changes to avoid conflicts
-          git fetch --all
-          git rebase origin/main
+          # Stash any changes to avoid conflicts
+          git stash --include-untracked
 
-          # Commit and push changes
-          git add Data/nyse_daily_stock_data*.csv
-          git add Data/combined_output.csv  # Include combined CSV
-          git commit -m "Update stock data CSVs for $(date +'%Y-%m-%d')"
+          # Pull the latest changes from the main branch
+          git pull --rebase || git rebase --abort  # Ensure rebase doesn't break the flow
+
+          # Apply the stash back (if there were any changes)
+          git stash pop || true  # No error if there's nothing to stash
+
+          # Stage all generated files
+          git add Data/*.csv
+
+          # Commit the changes
+          git commit -m "Update stock data CSVs for $(date +'%Y-%m-%d')" || echo "No changes to commit"
+
+          # Push the changes to the repository
           git push origin main
+
