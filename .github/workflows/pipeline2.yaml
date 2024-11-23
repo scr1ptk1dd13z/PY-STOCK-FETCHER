@@ -34,7 +34,7 @@ jobs:
       - name: Run fetcher.py
         run: |
           mkdir -p Data
-          python ${{ github.workspace }}/Utils/fetcher.py
+          python /Utils/fetcher.py
 
       # Step 6: Commit and push output
       - name: Commit and push output
