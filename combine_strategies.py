@@ -13,8 +13,12 @@ def combine_analysis(df):
         "Dividend": dividend.dividend_strategy,
         "ESG": esg.esg_strategy,
         "Growth": growth.growth_strategy,
+        "Income": income.income_strategy,
         "Momentum": momentum.momentum_strategy,
         "Quality": quality.quality_strategy,
+        "Sector Rotation": sector_rotation.sector_rotation_strategy,
+        "Small Cap": small_cap.small_cap_strategy,
+        "Turn Around": turn_around.turn_around_strategy,
         "Value": value.value_strategy,
 
     }
