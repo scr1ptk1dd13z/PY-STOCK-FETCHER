@@ -16,7 +16,9 @@ jobs:
 
       # Step 2: Debug the directory structure
       - name: Debug directory structure
-        run: ls -R ${{ github.workspace }}
+        run: |
+          echo "Current directory: ${{ github.workspace }}"
+          ls -R ${{ github.workspace }}
 
       # Step 3: Set up Python
       - name: Set up Python
@@ -34,7 +36,7 @@ jobs:
       - name: Run fetcher.py
         run: |
           mkdir -p Data
-          python /Utils/fetcher.py
+          python ${{ github.workspace }}/Utils/fetcher.py
 
       # Step 6: Commit and push output
       - name: Commit and push output
@@ -43,6 +45,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add Data/stock_data.csv
+          git add Data/*
           git commit -m "Update stock data [skip ci]" || echo "No changes to commit"
           git push origin HEAD
