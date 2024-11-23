@@ -1,26 +1,37 @@
-
 import pandas as pd
 import yfinance as yf
 import time
-from datetime import datetime
-from google.colab import files
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import yaml
+import logging
 
-# Function to fetch data for each ticker
-def fetch_ticker_data(ticker, index, total_tickers):
-    print(f"Fetching data for {ticker} ({index}/{total_tickers})")
-    stock = yf.Ticker(ticker)
-    retries = 3
-    delay = 1  # Initial delay of 1 second
-    while retries > 0:
+# Load configuration
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
+# Config values
+ticker_file = config["fetching"]["ticker_file"]
+batch_size = config["fetching"]["batch_size"]
+api_rate_limit_ms = config["fetching"]["api_rate_limit_ms"]
+pause_duration = config["fetching"]["pause_duration"]
+output_folder = config["fetching"]["output_folder"]
+log_file = config["fetching"]["log_file"]
+
+# Logging configuration
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# Function to fetch stock data
+def fetch_stock_data(tickers):
+    logging.info("Starting stock data fetch process.")
+    stock_data = []
+    for i, ticker in enumerate(tickers):
         try:
-            # Fetch the stock's detailed info
+            stock = yf.Ticker(ticker)
             info = stock.info
-            
-            # Sleep for 1 second before each request to prevent rate limits
-            time.sleep(1)
-
-            return {
+            stock_data.append({
                 "Symbol": ticker,
                 "Name": info.get("longName", "N/A"),
                 "Sector": info.get("sector", "N/A"),
@@ -80,70 +91,29 @@ def fetch_ticker_data(ticker, index, total_tickers):
                 "Trailing EPS": info.get("trailingEps", "N/A"),
                 "Forward EPS": info.get("forwardEps", "N/A"),
                 "Total Revenue": info.get("totalRevenue", "N/A"),
-            }
+            })
+            logging.info(f"Successfully fetched data for ticker: {ticker}")
         except Exception as e:
-            retries -= 1
-            if retries == 0:
-                print(f"Failed to fetch data for {ticker}: {e}")
-            else:
-                time.sleep(delay)  # Exponential backoff on retries
-                delay *= 2  # Double delay time with each retry
-
-# Function to get tickers array from file
-def get_tickers(exchange_name):
-    with open(f"{exchange_name}_SYMBOLS.txt", "r") as file:
-        return file.read().splitlines()
-
-# Function to fetch data for all tickers and collect the results
-def fetch_stock_data(tickers):
-    stock_data = []
-    total_tickers = len(tickers)
-    start_time = time.monotonic()
-
-    # Create a thread pool with a maximum of 5 threads
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        # Submit multiple tasks to the pool
-        futures = [executor.submit(fetch_ticker_data, ticker, index, total_tickers) for index, ticker in enumerate(tickers, start=1)]
-        
-        # Collect results as each Future completes
-        for future in as_completed(futures):
-            try:
-                result = future.result()  # Retrieve the result from each Future
-                if result:  # Only append if the result is not None
-                    stock_data.append(result)
-            except Exception as e:
-                print(f"An error occurred: {e}")
-
-    elapsed_time = time.monotonic() - start_time 
-    print(f"All info fetched in {elapsed_time:.2f} seconds")
-
+            logging.error(f"Error fetching data for {ticker}: {e}")
+        time.sleep(api_rate_limit_ms / 1000)  # Convert ms to seconds
+        if (i + 1) % batch_size == 0:
+            logging.info(f"Processed {i + 1} tickers. Pausing for {pause_duration} seconds...")
+            time.sleep(pause_duration)
+    logging.info("Stock data fetch process completed.")
     return pd.DataFrame(stock_data)
 
+# Main execution
 if __name__ == "__main__":
-    # Fetch tickers from the custom list and TSX Composite
-    custom_tickers = get_tickers("NYSE")
-    canadian_tickers = get_tickers("TSX")
-
-    # Combine both lists without limiting the number of stocks
-    top_tickers = custom_tickers + canadian_tickers
-
+    # Load tickers
+    with open(ticker_file, "r") as file:
+        tickers = [line.strip() for line in file.readlines()]
+    
+    logging.info(f"Loaded {len(tickers)} tickers from {ticker_file}.")
+    
     # Fetch stock data
-    stock_df = fetch_stock_data(top_tickers)
-
-    # Get the current date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-
-    # Define file names with the current date
-    csv_file_name = f"custom_us_canadian_stocks_{current_date}.csv"
-    excel_file_name = f"custom_us_canadian_stocks_{current_date}.xlsx"
-
-    # Save to CSV and Excel
-    stock_df.to_csv(csv_file_name, index=False)
-    stock_df.to_excel(excel_file_name, index=False)
-
-    print(
-        f"Data for custom US and Canadian stocks has been saved to {csv_file_name} and {excel_file_name}"
-    )
-
-    # Automatically download the CSV file
-    files.download(csv_file_name)
+    stock_df = fetch_stock_data(tickers)
+    
+    # Save to CSV
+    output_path = f"{output_folder}/stock_data.csv"
+    stock_df.to_csv(output_path, index=False)
+    logging.info(f"Stock data saved to {output_path}.")

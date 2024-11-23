@@ -1,17 +1,27 @@
 import os
-from script_v8_auto import get_stock_data
+from Utils.fetcher import fetch_stock_data
+from Utils.file_ops import save_to_csv, load_from_csv
 from combine_strategies import combine_analysis
 from datetime import datetime
 
-# Step 1: Fetch stock data
-stock_data = get_stock_data()
+def main():
+    # Fetch stock data
+    tickers = load_from_csv("Data/tickers.csv")["Symbol"]
+    stock_data = fetch_stock_data(tickers)
 
-# Step 2: Save stock data to CSV
-today = datetime.now().strftime('%Y-%m-%d')
-stock_data_file = f'Data/stock_data_{today}.csv'
-os.makedirs('Data', exist_ok=True)
-stock_data.to_csv(stock_data_file, index=False)
+    # Save raw data
+    today = datetime.now().strftime('%Y-%m-%d')
+    raw_data_file = f"Data/raw_stock_data_{today}.csv"
+    save_to_csv(stock_data, raw_data_file)
+    print(f"Stock data saved to {raw_data_file}.")
 
-# Step 3: Perform combined strategy analysis
-combined_results_file = f'Data/combined_results_{today}.txt'
-combine_analysis(stock_data, combined_results_file)
+    # Run strategies
+    combined_results = combine_analysis(stock_data)
+
+    # Save results
+    results_file = f"Data/strategy_results_{today}.csv"
+    save_to_csv(combined_results, results_file)
+    print(f"Strategy results saved to {results_file}.")
+
+if __name__ == "__main__":
+    main()

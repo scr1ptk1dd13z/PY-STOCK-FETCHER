@@ -1,0 +1,23 @@
+fetching:
+  ticker_file: "Input/tickers.txt"  # Path to the ticker list file
+  batch_size: 400                   # Number of tickers to fetch per batch
+  delay_seconds: 240                # Delay in seconds between batches
+  api_rate_limit_ms: 200            # API call rate limit in milliseconds per call
+  output_folder: "Data"             # Folder to save the generated CSV files
+  output_filename_format: "daily_stock_data_{date}.csv"  # Output file name format
+
+logging:
+  level: "INFO"                     # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_file: "logs/fetching.log"     # Path to the log file
+
+api:
+  provider: "YahooFinance"          # Specify the API provider (for extensibility)
+  retries: 0                        # Number of retry attempts per failed request
+  timeout: 10                       # Timeout in seconds for each API call
+
+file_format:
+  csv:
+    delimiter: ","                  # CSV file delimiter
+    include_headers: true           # Whether to include headers in the CSV file
+  xlsx:
+    enabled: false                  # Option to output XLSX files (disabled by default)
