@@ -14,7 +14,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Debug the directory structure
+      # Step 2: Debug directory structure
       - name: Debug directory structure
         run: |
           echo "Current directory: ${{ github.workspace }}"
