@@ -14,11 +14,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # List repository files (for debugging path issues)
+      - name: List files in repository
+        run: ls -R
+
       # Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"  # Specify Python version
+          python-version: "3.10"
 
       # Install dependencies
       - name: Install dependencies
