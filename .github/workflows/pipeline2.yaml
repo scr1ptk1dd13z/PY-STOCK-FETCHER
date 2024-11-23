@@ -1,4 +1,4 @@
-name: Fetch Stock Data v3
+name: Fetch Stock Data
 
 on:
   workflow_dispatch:  # Allows manual triggering
@@ -30,7 +30,7 @@ jobs:
       - name: Run fetcher.py
         run: |
           mkdir -p Data
-          python fetcher.py
+          python Utils/fetcher.py
 
       # Commit and push the updated CSV file
       - name: Commit and push output
