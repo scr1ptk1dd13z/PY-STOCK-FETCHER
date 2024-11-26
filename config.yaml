@@ -3,6 +3,7 @@ fetching:
   batch_size: 400                   # Number of tickers to fetch per batch
   delay_seconds: 240                # Delay in seconds between batches
   api_rate_limit_ms: 200            # API call rate limit in milliseconds per call
+  pause_duration: 200               # Delay between API calls (in ms)
   output_folder: "Data"             # Folder to save the generated CSV files
   output_filename_format: "daily_stock_data_{date}.csv"  # Output file name format
 
