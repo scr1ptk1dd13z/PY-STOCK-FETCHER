@@ -1,8 +1,9 @@
 fetching:
-  batch_size: 100                   # Number of tickers to process before pausing
-  api_rate_limit_ms: 200            # Delay between API calls in milliseconds
-  output_folder: "Data"             # Folder to save the generated CSV files
-  output_filename_format: "stock_data_{date}.csv"  # Output file name format
+  api_rate_limit_ms: 200  # Delay between API calls (milliseconds)
+  batch_size: 400  # Number of calls before a pause
+  batch_pause_duration: 300  # Pause duration in seconds (5 minutes)
+  output_folder: 'stock_data'
+  output_filename_format: 'stock_data_{date}.csv'
 
 logging:
   level: "INFO"                     # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
