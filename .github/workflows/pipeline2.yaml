@@ -32,13 +32,27 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 5: Run fetcher.py
+      # Step 5: Verify fetcher.py path
+      - name: Verify fetcher.py existence
+        run: |
+          if [ ! -f Utilis/fetcher.py ]; then
+            echo "Error: fetcher.py not found in Utilis/ directory."
+            exit 1
+          fi
+
+      # Step 6: Run fetcher.py
       - name: Run fetcher.py
         run: |
           mkdir -p Data
-          python Utilis/fetcher.py  # Corrected directory path to 'Utilis'
+          python Utilis/fetcher.py
 
-      # Step 6: Commit and push output
+      # Step 7: Debug Data directory
+      - name: Debug Data directory
+        run: |
+          echo "Contents of Data directory:"
+          ls -R Data || echo "Data directory not found or empty."
+
+      # Step 8: Commit and push output
       - name: Commit and push output
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
