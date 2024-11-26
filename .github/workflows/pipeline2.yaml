@@ -32,19 +32,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 5: Verify fetcher.py path
-      - name: Verify fetcher.py existence
-        run: |
-          if [ ! -f Utilis/fetcher.py ]; then
-            echo "Error: fetcher.py not found in Utilis/ directory."
-            exit 1
-          fi
-
       # Step 6: Run fetcher.py
       - name: Run fetcher.py
         run: |
           mkdir -p Data
-          python Utilis/fetcher.py
+          python Utils/fetcher.py
 
       # Step 7: Debug Data directory
       - name: Debug Data directory
