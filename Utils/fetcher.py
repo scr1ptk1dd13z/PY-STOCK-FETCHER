@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 import yfinance as yf
 import time
@@ -6,19 +7,26 @@ import yaml
 import logging
 from typing import List, Dict
 
+# Dynamically get the project root directory
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
 class StockDataFetcher:
-    def __init__(self, config_path="config.yaml"):
+    def __init__(self, config_path=None):
+        # If no config path provided, look in the project root
+        if config_path is None:
+            config_path = os.path.join(PROJECT_ROOT, 'config.yaml')
+        
         # Load configuration
         with open(config_path, "r") as file:
             self.config = yaml.safe_load(file)
         
         # Ensure output and log directories exist
-        os.makedirs(self.config['fetching']['output_folder'], exist_ok=True)
-        os.makedirs(os.path.dirname(self.config['logging']['log_file']), exist_ok=True)
+        os.makedirs(os.path.join(PROJECT_ROOT, self.config['fetching']['output_folder']), exist_ok=True)
+        os.makedirs(os.path.join(PROJECT_ROOT, os.path.dirname(self.config['logging']['log_file'])), exist_ok=True)
         
         # Configure logging
         logging.basicConfig(
-            filename=self.config['logging']['log_file'],
+            filename=os.path.join(PROJECT_ROOT, self.config['logging']['log_file']),
             level=getattr(logging, self.config['logging']['level']),
             format="%(asctime)s - %(levelname)s - %(message)s"
         )
@@ -43,7 +51,6 @@ class StockDataFetcher:
                 "Market Cap": info.get("marketCap", "N/A"),
                 "PE Ratio": info.get("trailingPE", "N/A"),
                 "Dividend Yield": info.get("dividendYield", "N/A"),
-                # Fewer fields to reduce likelihood of missing data
             }
         except Exception as e:
             self.logger.error(f"Error fetching data for {ticker}: {e}")
@@ -70,8 +77,8 @@ class StockDataFetcher:
         df = pd.DataFrame(results)
         
         # Log stats
-        successful_tickers = df[df['Error'].isna()].shape[0]
-        failed_tickers = df[df['Error'].notna()].shape[0]
+        successful_tickers = df[df.get('Error', pd.Series()).isna()].shape[0]
+        failed_tickers = df[df.get('Error', pd.Series()).notna()].shape[0]
         self.logger.info(f"Fetch complete. Successful: {successful_tickers}, Failed: {failed_tickers}")
         
         return df
@@ -85,7 +92,7 @@ class StockDataFetcher:
                 date=time.strftime("%Y-%m-%d")
             )
         
-        full_path = os.path.join(self.config['fetching']['output_folder'], filename)
+        full_path = os.path.join(PROJECT_ROOT, self.config['fetching']['output_folder'], filename)
         
         try:
             df.to_csv(full_path, index=False)
@@ -94,13 +101,27 @@ class StockDataFetcher:
             self.logger.error(f"Failed to save data: {e}")
 
 def main():
-    # Load tickers from file
-    with open("Input/tickers.txt", "r") as f:
-        tickers = [line.strip() for line in f if line.strip()]
+    # Construct the full path to tickers.txt
+    tickers_path = os.path.join(PROJECT_ROOT, 'Input', 'tickers.txt')
     
-    fetcher = StockDataFetcher()
-    stock_data = fetcher.fetch_stock_data(tickers)
-    fetcher.save_data(stock_data)
+    # Load tickers from file
+    try:
+        with open(tickers_path, "r") as f:
+            tickers = [line.strip() for line in f if line.strip()]
+        
+        print(f"Loaded {len(tickers)} tickers from {tickers_path}")
+        
+        fetcher = StockDataFetcher()
+        stock_data = fetcher.fetch_stock_data(tickers)
+        fetcher.save_data(stock_data)
+    
+    except FileNotFoundError:
+        print(f"Error: Tickers file not found at {tickers_path}")
+        print("Please ensure 'tickers.txt' exists in the Input directory")
+        sys.exit(1)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
