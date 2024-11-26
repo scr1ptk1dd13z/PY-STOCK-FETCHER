@@ -1,11 +1,13 @@
 import os
 import sys
-import pandas as pd
-import yfinance as yf
 import time
+import random
 import yaml
 import logging
 from typing import List, Dict, Optional
+
+import pandas as pd
+import yfinance as yf
 
 class StockDataFetcher:
     def __init__(self, config_path=None):
@@ -23,11 +25,35 @@ class StockDataFetcher:
             config_path = self.find_file('config.yaml')
         
         # Load configuration
-        with open(config_path, "r") as file:
-            self.config = yaml.safe_load(file)
+        self._load_config(config_path)
         
         # Configure logging
         self._setup_logging()
+
+    def _load_config(self, config_path: str):
+        """
+        Load and validate configuration
+        """
+        try:
+            with open(config_path, "r") as file:
+                self.config = yaml.safe_load(file)
+            
+            # Validate critical configuration sections
+            required_keys = {
+                'logging': ['log_file', 'level'],
+                'fetching': ['api_rate_limit_ms', 'batch_size', 'batch_pause_duration', 'output_folder', 'output_filename_format']
+            }
+            
+            for section, keys in required_keys.items():
+                if section not in self.config:
+                    raise KeyError(f"Missing {section} section in config")
+                for key in keys:
+                    if key not in self.config[section]:
+                        raise KeyError(f"Missing {key} in {section} configuration")
+        
+        except (IOError, yaml.YAMLError) as e:
+            print(f"Error loading configuration: {e}")
+            raise
 
     def _setup_logging(self):
         """Set up logging with robust directory creation"""
@@ -158,7 +184,7 @@ class StockDataFetcher:
 
     def fetch_stock_data(self, tickers: List[str]) -> pd.DataFrame:
         """
-        Fetch stock data for multiple tickers with batching
+        Fetch stock data for multiple tickers with advanced rate limiting and error handling
         """
         if not tickers:
             print("No tickers provided. Exiting.")
@@ -167,21 +193,50 @@ class StockDataFetcher:
         self.logger.info(f"Starting stock data fetch for {len(tickers)} tickers")
         
         results = []
-        for i, ticker in enumerate(tickers, 1):
-            result = self.fetch_single_ticker(ticker)
-            results.append(result)
-            
-            # Rate limiting
-            time.sleep(self.config['fetching']['api_rate_limit_ms'] / 1000)
-            
-            # Optional batching
-            if i % self.config['fetching'].get('batch_size', 100) == 0:
-                self.logger.info(f"Processed {i} tickers")
+        consecutive_calls = 0
+        retry_delay = 1  # Initial retry delay
+        max_retry_delay = 60  # Maximum delay between retries
         
+        for i, ticker in enumerate(tickers, 1):
+            try:
+                # Check if we need a longer pause
+                if consecutive_calls >= self.config['fetching']['batch_size']:
+                    pause_duration = self.config['fetching']['batch_pause_duration']
+                    self.logger.info(f"Reached batch limit. Pausing for {pause_duration} seconds")
+                    time.sleep(pause_duration)
+                    consecutive_calls = 0
+                    retry_delay = 1  # Reset retry delay
+                
+                # Fetch ticker data
+                result = self.fetch_single_ticker(ticker)
+                results.append(result)
+                
+                # Basic rate limiting
+                time.sleep(self.config['fetching']['api_rate_limit_ms'] / 1000)
+                
+                consecutive_calls += 1
+                
+                # Optional progress logging
+                if i % 50 == 0:
+                    self.logger.info(f"Processed {i} tickers")
+            
+            except Exception as e:
+                # Log and handle any unexpected errors
+                self.logger.error(f"Unexpected error processing {ticker}: {e}")
+                
+                # Exponential backoff with jitter for rate limit errors
+                if "429" in str(e):
+                    self.logger.warning(f"Rate limit hit for {ticker}. Backing off.")
+                    time.sleep(retry_delay + random.uniform(0, 1))
+                    retry_delay = min(retry_delay * 2, max_retry_delay)
+                
+                results.append({"Symbol": ticker, "Error": str(e)})
+        
+        # Convert results to DataFrame
         df = pd.DataFrame(results)
         
         # Log stats
-        successful_tickers = df[df.get('Error', pd.Series()).isna()].shape[0]
+        successful_tickers = df[~df.get('Error', pd.Series()).notna()].shape[0]
         failed_tickers = df[df.get('Error', pd.Series()).notna()].shape[0]
         self.logger.info(f"Fetch complete. Successful: {successful_tickers}, Failed: {failed_tickers}")
         
