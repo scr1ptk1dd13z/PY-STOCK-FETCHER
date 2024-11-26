@@ -1,64 +1,106 @@
 import os
-import sys
+import pandas as pd
+import yfinance as yf
+import time
+import yaml
 import logging
-from datetime import datetime
+from typing import List, Dict
 
-# Ensure the project root directory is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+class StockDataFetcher:
+    def __init__(self, config_path="config.yaml"):
+        # Load configuration
+        with open(config_path, "r") as file:
+            self.config = yaml.safe_load(file)
+        
+        # Ensure output and log directories exist
+        os.makedirs(self.config['fetching']['output_folder'], exist_ok=True)
+        os.makedirs(os.path.dirname(self.config['logging']['log_file']), exist_ok=True)
+        
+        # Configure logging
+        logging.basicConfig(
+            filename=self.config['logging']['log_file'],
+            level=getattr(logging, self.config['logging']['level']),
+            format="%(asctime)s - %(levelname)s - %(message)s"
+        )
+        
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
 
-from fetcher import StockDataFetcher
-from Utils.file_ops import load_from_csv, save_to_csv
+    def fetch_single_ticker(self, ticker: str) -> Dict:
+        """
+        Fetch stock data for a single ticker with robust error handling
+        """
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info
 
-def setup_logging():
-    """Set up logging for the pipeline"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s: %(message)s',
-        handlers=[
-            logging.FileHandler('logs/pipeline.log'),
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
+            # Use get() method with fallback values to prevent KeyError
+            return {
+                "Symbol": ticker,
+                "Name": info.get("longName", "N/A"),
+                "Sector": info.get("sector", "N/A"),
+                "Current Price": info.get("currentPrice", "N/A"),
+                "Market Cap": info.get("marketCap", "N/A"),
+                "PE Ratio": info.get("trailingPE", "N/A"),
+                "Dividend Yield": info.get("dividendYield", "N/A"),
+                # Fewer fields to reduce likelihood of missing data
+            }
+        except Exception as e:
+            self.logger.error(f"Error fetching data for {ticker}: {e}")
+            return {"Symbol": ticker, "Error": str(e)}
+
+    def fetch_stock_data(self, tickers: List[str]) -> pd.DataFrame:
+        """
+        Fetch stock data for multiple tickers with batching
+        """
+        self.logger.info(f"Starting stock data fetch for {len(tickers)} tickers")
+        
+        results = []
+        for i, ticker in enumerate(tickers, 1):
+            result = self.fetch_single_ticker(ticker)
+            results.append(result)
+            
+            # Rate limiting
+            time.sleep(self.config['fetching']['api_rate_limit_ms'] / 1000)
+            
+            # Optional batching
+            if i % self.config['fetching'].get('batch_size', 100) == 0:
+                self.logger.info(f"Processed {i} tickers")
+        
+        df = pd.DataFrame(results)
+        
+        # Log stats
+        successful_tickers = df[df['Error'].isna()].shape[0]
+        failed_tickers = df[df['Error'].notna()].shape[0]
+        self.logger.info(f"Fetch complete. Successful: {successful_tickers}, Failed: {failed_tickers}")
+        
+        return df
+
+    def save_data(self, df: pd.DataFrame, filename: str = None):
+        """
+        Save stock data to CSV with flexible naming
+        """
+        if filename is None:
+            filename = self.config['fetching']['output_filename_format'].format(
+                date=time.strftime("%Y-%m-%d")
+            )
+        
+        full_path = os.path.join(self.config['fetching']['output_folder'], filename)
+        
+        try:
+            df.to_csv(full_path, index=False)
+            self.logger.info(f"Data saved to {full_path}")
+        except Exception as e:
+            self.logger.error(f"Failed to save data: {e}")
 
 def main():
-    try:
-        # Setup logging
-        setup_logging()
-        logger = logging.getLogger(__name__)
-
-        # Load tickers
-        logger.info("Loading ticker list")
-        tickers_file = "Input/tickers.txt"  # Standardized ticker file path
-        with open(tickers_file, "r") as f:
-            tickers = [line.strip() for line in f if line.strip()]
-        
-        logger.info(f"Loaded {len(tickers)} tickers from {tickers_file}")
-
-        # Initialize fetcher
-        fetcher = StockDataFetcher()
-
-        # Fetch stock data
-        logger.info("Starting stock data fetch")
-        stock_data = fetcher.fetch_stock_data(tickers)
-
-        # Generate filename with current date
-        today = datetime.now().strftime('%Y-%m-%d')
-        raw_data_file = f"Data/raw_stock_data_{today}.csv"
-
-        # Save raw data
-        logger.info(f"Saving raw stock data to {raw_data_file}")
-        stock_data.to_csv(raw_data_file, index=False)
-
-        # Optional: Add further processing or strategy analysis here
-        # For now, we'll just log some basic stats
-        logger.info(f"Processed {len(stock_data)} stocks")
-        logger.info(f"Total stocks with successful data: {len(stock_data[stock_data['Error'].isna()])}")
-
-        print("Stock data fetch and save completed successfully.")
-
-    except Exception as e:
-        logging.error(f"Pipeline execution failed: {e}", exc_info=True)
-        sys.exit(1)
+    # Load tickers from file
+    with open("Input/tickers.txt", "r") as f:
+        tickers = [line.strip() for line in f if line.strip()]
+    
+    fetcher = StockDataFetcher()
+    stock_data = fetcher.fetch_stock_data(tickers)
+    fetcher.save_data(stock_data)
 
 if __name__ == "__main__":
     main()
