@@ -14,7 +14,7 @@ batch_size = config["fetching"]["batch_size"]
 api_rate_limit_ms = config["fetching"]["api_rate_limit_ms"]
 pause_duration = config["fetching"]["pause_duration"]
 output_folder = config["fetching"]["output_folder"]
-log_file = config["fetching"]["log_file"]
+log_file = config["logging"]["log_file"]
 
 # Logging configuration
 logging.basicConfig(
