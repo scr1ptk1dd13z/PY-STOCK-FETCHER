@@ -235,9 +235,11 @@ class StockDataFetcher:
         # Convert results to DataFrame
         df = pd.DataFrame(results)
         
-        # Log stats
-        successful_tickers = df[~df.get('Error', pd.Series()).notna()].shape[0]
-        failed_tickers = df[df.get('Error', pd.Series()).notna()].shape[0]
+        # Correctly count successful and failed tickers
+        df['has_error'] = df['Error'].notna()
+        successful_tickers = (~df['has_error']).sum()
+        failed_tickers = df['has_error'].sum()
+        
         self.logger.info(f"Fetch complete. Successful: {successful_tickers}, Failed: {failed_tickers}")
         
         return df
