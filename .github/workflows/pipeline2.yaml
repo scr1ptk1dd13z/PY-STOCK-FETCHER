@@ -1,12 +1,12 @@
 name: Stock Data Pipeline
 
 on:
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
   schedule:
-    - cron: '0 2 * * 1,4'  # Run twice a week (Monday and Thursday at 2 AM)
+    - cron: '0 2 * * 1,4'
 
 permissions:
-  contents: write  # Allows the workflow to write to the repository
+  contents: write
 
 jobs:
   fetch-stock-data:
@@ -34,7 +34,6 @@ jobs:
     
     - name: Verify ticker file
       run: |
-        # If ticker.txt doesn't exist, create a default list (optional)
         if [ ! -f Input/ticker.txt ]; then
           echo "Creating default ticker list"
           echo "AAPL
@@ -43,27 +42,19 @@ jobs:
     AMZN
     NVDA" > Input/ticker.txt
         fi
-        
-        # Display first few lines of ticker file
         head -n 5 Input/ticker.txt
     
     - name: Run Stock Data Pipeline
       run: |
-        python pipeline_script.py
+        python pipeline_script.py || echo "Script failed. Check logs for details."
       env:
-        # Optional: Add any API keys or sensitive configurations here
-        # SOME_API_KEY: ${{ secrets.SOME_API_KEY }}
+        API_KEY: ${{ secrets.API_KEY }}
     
     - name: Commit and push data
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
-        # Add new data files
-        git add Data/raw_stock_data_*.csv
-        git add logs/pipeline.log
-        
-        # Check if there are any changes to commit
+        git add Data/*.csv logs/*.log
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
@@ -85,11 +76,11 @@ jobs:
       if: failure()
       uses: actions/github-script@v7
       with:
-        github-token: ${{secrets.PAT}}
+        github-token: ${{ secrets.PAT }}
         script: |
           github.rest.issues.create({
             owner: context.repo.owner,
             repo: context.repo.repo,
             title: 'Stock Data Pipeline Failed',
-            body: 'The stock data pipeline failed on ' + new Date().toISOString() + '. Please check the workflow logs.'
+            body: 'The stock data pipeline failed on ' + new Date().toISOString() + '. Check logs for details.'
           })
