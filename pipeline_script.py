@@ -11,6 +11,9 @@ from Utils.file_ops import load_from_csv, save_to_csv
 
 def setup_logging():
     """Set up logging for the pipeline"""
+    # Ensure logs directory exists
+    os.makedirs('logs', exist_ok=True)
+    
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s: %(message)s',
@@ -26,20 +29,30 @@ def main():
         setup_logging()
         logger = logging.getLogger(__name__)
 
-        # Load tickers
-        logger.info("Loading ticker list")
-        tickers_file = "Input/tickers.txt"  # Standardized ticker file path
-        with open(tickers_file, "r") as f:
-            tickers = [line.strip() for line in f if line.strip()]
-        
-        logger.info(f"Loaded {len(tickers)} tickers from {tickers_file}")
+        # Ensure Data directory exists
+        os.makedirs('Data', exist_ok=True)
 
         # Initialize fetcher
         fetcher = StockDataFetcher()
 
+        # Load tickers using fetcher's method
+        logger.info("Loading ticker list")
+        tickers = fetcher.load_tickers()
+        
+        if not tickers:
+            logger.error("No tickers found. Exiting.")
+            sys.exit(1)
+        
+        logger.info(f"Loaded {len(tickers)} tickers")
+
         # Fetch stock data
         logger.info("Starting stock data fetch")
         stock_data = fetcher.fetch_stock_data(tickers)
+
+        # Check if stock_data is empty or contains only errors
+        if stock_data.empty or stock_data['Error'].notna().all():
+            logger.error("No valid stock data retrieved.")
+            sys.exit(1)
 
         # Generate filename with current date
         today = datetime.now().strftime('%Y-%m-%d')
@@ -49,10 +62,10 @@ def main():
         logger.info(f"Saving raw stock data to {raw_data_file}")
         stock_data.to_csv(raw_data_file, index=False)
 
-        # Optional: Add further processing or strategy analysis here
-        # For now, we'll just log some basic stats
+        # Log some basic stats
         logger.info(f"Processed {len(stock_data)} stocks")
-        logger.info(f"Total stocks with successful data: {len(stock_data[stock_data['Error'].isna()])}")
+        successful_stocks = len(stock_data[stock_data['Error'].isna()])
+        logger.info(f"Total stocks with successful data: {successful_stocks}")
 
         print("Stock data fetch and save completed successfully.")
 
