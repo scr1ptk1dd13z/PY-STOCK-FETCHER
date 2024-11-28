@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 import pandas as pd
 import yfinance as yf
 
+
 class StockDataFetcher:
     def __init__(self, config_path=None):
         # Potential root directories to search
@@ -116,7 +117,6 @@ class StockDataFetcher:
             stock = yf.Ticker(ticker)
             info = stock.info
 
-            # Use get() method with fallback values to prevent KeyError
             return {
                 "Symbol": ticker,
                 "Name": info.get("longName", "N/A"),
@@ -125,58 +125,8 @@ class StockDataFetcher:
                 "Country": info.get("country", "N/A"),
                 "Currency": info.get("currency", "N/A"),
                 "Exchange": info.get("exchange", "N/A"),
-                "Website": info.get("website", "N/A"),
                 "Current Price": info.get("currentPrice", "N/A"),
                 "Market Cap": info.get("marketCap", "N/A"),
-                "Enterprise Value": info.get("enterpriseValue", "N/A"),
-                "PE Ratio": info.get("trailingPE", "N/A"),
-                "Forward PE": info.get("forwardPE", "N/A"),
-                "PEG Ratio": info.get("pegRatio", "N/A"),
-                "Price to Book": info.get("priceToBook", "N/A"),
-                "Price to Sales": info.get("priceToSalesTrailing12Months", "N/A"),
-                "Book Value per Share": info.get("bookValue", "N/A"),
-                "Revenue per Share": info.get("revenuePerShare", "N/A"),
-                "Revenue Growth (YoY)": info.get("revenueGrowth", "N/A"),
-                "Earnings Growth (YoY)": info.get("earningsGrowth", "N/A"),
-                "EBITDA Margins": info.get("ebitdaMargins", "N/A"),
-                "Gross Margins": info.get("grossMargins", "N/A"),
-                "Operating Margins": info.get("operatingMargins", "N/A"),
-                "Profit Margins": info.get("profitMargins", "N/A"),
-                "Dividend Rate": info.get("dividendRate", "N/A"),
-                "Dividend Yield": info.get("dividendYield", "N/A"),
-                "Payout Ratio": info.get("payoutRatio", "N/A"),
-                "Five-Year Avg. Dividend Yield": info.get("fiveYearAvgDividendYield", "N/A"),
-                "Ex-Dividend Date": info.get("exDividendDate", "N/A"),
-                "Free Cash Flow": info.get("freeCashflow", "N/A"),
-                "Operating Cash Flow": info.get("operatingCashflow", "N/A"),
-                "Total Cash": info.get("totalCash", "N/A"),
-                "Cash per Share": info.get("totalCashPerShare", "N/A"),
-                "Total Debt": info.get("totalDebt", "N/A"),
-                "Net Debt": info.get("netDebt", "N/A"),
-                "Debt to Equity": info.get("debtToEquity", "N/A"),
-                "Current Ratio": info.get("currentRatio", "N/A"),
-                "Quick Ratio": info.get("quickRatio", "N/A"),
-                "Beta": info.get("beta", "N/A"),
-                "52-Week High": info.get("fiftyTwoWeekHigh", "N/A"),
-                "52-Week Low": info.get("fiftyTwoWeekLow", "N/A"),
-                "Average Volume": info.get("averageVolume", "N/A"),
-                "Regular Market Volume": info.get("regularMarketVolume", "N/A"),
-                "Current Price Change (%)": info.get("regularMarketChangePercent", "N/A"),
-                "1-Year Return": info.get("52WeekChange", "N/A"),
-                "Insider Ownership": info.get("heldPercentInsiders", "N/A"),
-                "Institutional Ownership": info.get("heldPercentInstitutions", "N/A"),
-                "Short Ratio": info.get("shortRatio", "N/A"),
-                "Target High Price": info.get("targetHighPrice", "N/A"),
-                "Target Low Price": info.get("targetLowPrice", "N/A"),
-                "Target Mean Price": info.get("targetMeanPrice", "N/A"),
-                "Recommendation Mean": info.get("recommendationMean", "N/A"),
-                "Number of Analyst Opinions": info.get("numberOfAnalystOpinions", "N/A"),
-                "Return on Assets": info.get("returnOnAssets", "N/A"),
-                "Return on Equity": info.get("returnOnEquity", "N/A"),
-                "Enterprise to EBITDA": info.get("enterpriseToEbitda", "N/A"),
-                "Trailing EPS": info.get("trailingEps", "N/A"),
-                "Forward EPS": info.get("forwardEps", "N/A"),
-                "Total Revenue": info.get("totalRevenue", "N/A"),
             }
         except Exception as e:
             self.logger.error(f"Error fetching data for {ticker}: {e}")
@@ -194,8 +144,6 @@ class StockDataFetcher:
         
         results = []
         consecutive_calls = 0
-        retry_delay = 1  # Initial retry delay
-        max_retry_delay = 60  # Maximum delay between retries
         
         for i, ticker in enumerate(tickers, 1):
             try:
@@ -205,7 +153,6 @@ class StockDataFetcher:
                     self.logger.info(f"Reached batch limit. Pausing for {pause_duration} seconds")
                     time.sleep(pause_duration)
                     consecutive_calls = 0
-                    retry_delay = 1  # Reset retry delay
                 
                 # Fetch ticker data
                 result = self.fetch_single_ticker(ticker)
@@ -213,35 +160,15 @@ class StockDataFetcher:
                 
                 # Basic rate limiting
                 time.sleep(self.config['fetching']['api_rate_limit_ms'] / 1000)
-                
                 consecutive_calls += 1
                 
-                # Optional progress logging
                 if i % 50 == 0:
                     self.logger.info(f"Processed {i} tickers")
-            
             except Exception as e:
-                # Log and handle any unexpected errors
                 self.logger.error(f"Unexpected error processing {ticker}: {e}")
-                
-                # Exponential backoff with jitter for rate limit errors
-                if "429" in str(e):
-                    self.logger.warning(f"Rate limit hit for {ticker}. Backing off.")
-                    time.sleep(retry_delay + random.uniform(0, 1))
-                    retry_delay = min(retry_delay * 2, max_retry_delay)
-                
                 results.append({"Symbol": ticker, "Error": str(e)})
         
-        # Convert results to DataFrame
         df = pd.DataFrame(results)
-        
-        # Correctly count successful and failed tickers
-        df['has_error'] = df['Error'].notna()
-        successful_tickers = (~df['has_error']).sum()
-        failed_tickers = df['has_error'].sum()
-        
-        self.logger.info(f"Fetch complete. Successful: {successful_tickers}, Failed: {failed_tickers}")
-        
         return df
 
     def save_data(self, df: pd.DataFrame, filename: str = None):
@@ -257,7 +184,6 @@ class StockDataFetcher:
                 date=time.strftime("%Y-%m-%d")
             )
         
-        # Ensure output directory exists
         output_dir = self.config['fetching']['output_folder']
         os.makedirs(output_dir, exist_ok=True)
         
@@ -268,30 +194,24 @@ class StockDataFetcher:
             print(f"Data saved to {full_path}")
             self.logger.info(f"Data saved to {full_path}")
         except Exception as e:
-            print(f"Failed to save data: {e}")
             self.logger.error(f"Failed to save data: {e}")
+
 
 def main():
     try:
-        # Create fetcher instance
         fetcher = StockDataFetcher()
-        
-        # Load tickers
         tickers = fetcher.load_tickers()
         
         if not tickers:
             print("No tickers found. Exiting.")
             sys.exit(1)
         
-        # Fetch stock data
         stock_data = fetcher.fetch_stock_data(tickers)
-        
-        # Save data
         fetcher.save_data(stock_data)
-    
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
