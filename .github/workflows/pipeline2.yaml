@@ -25,7 +25,6 @@ jobs:
       run: |
         mkdir -p Data
         mkdir -p logs
-        mkdir -p Input
     
     - name: Install dependencies
       run: |
@@ -34,16 +33,20 @@ jobs:
     
     - name: Verify ticker file
       run: |
-        if [ ! -f Input/tickers.txt ]; then
+        # Ensure a tickers file exists
+        if [ ! -f tickers.txt ]; then
           echo "Creating default ticker list"
-          echo -e "AAPL\nMSFT\nGOOGL\nAMZN\nNVDA" > Input/tickers.txt
+          echo -e "AAPL\nMSFT\nGOOGL\nAMZN\nNVDA" > tickers.txt
         fi
-        # Display the first few lines of the ticker file
-        head -n 5 Input/tickers.txt
+        # Display the contents of the ticker file
+        cat tickers.txt
     
     - name: Run Stock Data Pipeline
       run: |
-        python pipeline_script.py || echo "Script failed. Check logs for details."
+        # Add the current directory to PYTHONPATH to help Python find modules
+        export PYTHONPATH=$PYTHONPATH:.
+        # Run the script with verbose output
+        python pipeline_script.py -v || echo "Script failed. Check logs for details."
       env:
         API_KEY: ${{ secrets.API_KEY }}
     
@@ -51,7 +54,7 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add Data/*.csv logs/*.log
+        git add Data/*.csv logs/*.log tickers.txt
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
@@ -67,6 +70,7 @@ jobs:
         path: |
           Data/
           logs/
+          tickers.txt
         retention-days: 5
     
     - name: Notify on failure
