@@ -34,9 +34,9 @@ jobs:
     
     - name: Verify ticker file
       run: |
-        if [ ! -f Input/ticker.txt ]; then
+        if [ ! -f Input/tickers.txt ]; then
           echo "Creating default ticker list"
-          echo -e "AAPL\nMSFT\nGOOGL\nAMZN\nNVDA" > Input/ticker.txt
+          echo -e "AAPL\nMSFT\nGOOGL\nAMZN\nNVDA" > Input/tickers.txt
         fi
         # Display the first few lines of the ticker file
         head -n 5 Input/ticker.txt
