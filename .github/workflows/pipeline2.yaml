@@ -3,10 +3,10 @@ name: Stock Data Pipeline
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * 1,4'
+    - cron: '0 2 * * 1,4'  # Run twice a week (Monday and Thursday at 2 AM)
 
 permissions:
-  contents: write
+  contents: write  # Allows the workflow to write to the repository
 
 jobs:
   fetch-stock-data:
@@ -36,12 +36,9 @@ jobs:
       run: |
         if [ ! -f Input/ticker.txt ]; then
           echo "Creating default ticker list"
-          echo "AAPL
-    MSFT
-    GOOGL
-    AMZN
-    NVDA" > Input/ticker.txt
+          echo -e "AAPL\nMSFT\nGOOGL\nAMZN\nNVDA" > Input/ticker.txt
         fi
+        # Display the first few lines of the ticker file
         head -n 5 Input/ticker.txt
     
     - name: Run Stock Data Pipeline
