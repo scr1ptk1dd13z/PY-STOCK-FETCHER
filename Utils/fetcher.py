@@ -88,7 +88,7 @@ class StockDataFetcher:
         """
         Attempt to find and load tickers from multiple possible locations
         """
-        ticker_filenames = ['tickers.txt', 'ticker.txt', 'stocks.txt']
+        ticker_filenames = ['tickers.txt', 'tsx.txt']
         
         for filename in ticker_filenames:
             ticker_path = self.find_file(filename)
