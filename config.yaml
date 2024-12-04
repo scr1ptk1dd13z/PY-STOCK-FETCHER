@@ -1,0 +1,57 @@
+# Stock Data Fetching Configuration
+
+# Logging Configuration
+logging:
+  # Path to the log file
+  log_file: logs/stock_fetcher.log
+  
+  # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  level: INFO
+
+# Fetching Strategy Configuration
+fetching:
+  # Milliseconds to wait between API calls to prevent rate limiting
+  api_rate_limit_ms: 500
+  
+  # Number of tickers to process before taking a pause
+  batch_size: 50
+  
+  # Duration to pause between batches (in seconds)
+  batch_pause_duration: 30
+  
+  # Output directory for saved stock data
+  output_folder: Data
+  
+  # Filename format for output CSV
+  # {date} will be replaced with the current date
+  output_filename_format: raw_stock_data_{date}.csv
+
+# Optional: Additional Customization
+advanced:
+  # Maximum number of retry attempts for failed ticker fetches
+  max_retries: 3
+  
+  # Exponential backoff base for retry delays
+  retry_backoff_base: 2
+  
+  # Maximum delay between retries (in seconds)
+  max_retry_delay: 60
+
+# Ticker Selection Preferences
+ticker_sources:
+  # Prioritized list of ticker file names to search
+  filenames:
+    - tickers.txt
+    - ticker.txt
+    - tsx.txt
+  
+  # Optional: Specify a custom path to ticker file
+  # custom_path: /path/to/your/tickers.txt
+
+# Error Handling
+error_handling:
+  # Continue processing other tickers if one fails
+  continue_on_error: true
+  
+  # Log detailed error information
+  detailed_error_logging: true
